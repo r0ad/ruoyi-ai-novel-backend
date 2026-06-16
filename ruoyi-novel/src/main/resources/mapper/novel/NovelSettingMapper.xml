@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.mapper.NovelSettingMapper">
+
+    <resultMap type="NovelSetting" id="NovelSettingResult">
+        <result property="settingId" column="setting_id" />
+        <result property="projectId" column="project_id" />
+        <result property="settingType" column="setting_type" />
+        <result property="title" column="title" />
+        <result property="content" column="content" />
+        <result property="contentHtml" column="content_html" />
+        <result property="versionNo" column="version_no" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="selectNovelSettingVo">
+        select setting_id, project_id, setting_type, title, content, content_html, version_no,
+               create_by, create_time, update_by, update_time
+        from novel_setting
+    </sql>
+
+    <select id="selectNovelSettingBySettingId" parameterType="Long" resultMap="NovelSettingResult">
+        <include refid="selectNovelSettingVo"/>
+        where setting_id = #{settingId}
+    </select>
+
+    <select id="selectNovelSettingByProjectAndType" parameterType="NovelSetting" resultMap="NovelSettingResult">
+        <include refid="selectNovelSettingVo"/>
+        where project_id = #{projectId} and setting_type = #{settingType}
+    </select>
+
+    <select id="selectNovelSettingListByProjectId" parameterType="Long" resultMap="NovelSettingResult">
+        <include refid="selectNovelSettingVo"/>
+        where project_id = #{projectId}
+        order by setting_type asc
+    </select>
+
+    <insert id="insertNovelSetting" parameterType="NovelSetting" useGeneratedKeys="true" keyProperty="settingId">
+        insert into novel_setting (
+            project_id, setting_type, title, content, content_html, version_no, create_by, create_time
+        ) values (
+            #{projectId}, #{settingType}, #{title}, #{content}, #{contentHtml}, #{versionNo}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateNovelSetting" parameterType="NovelSetting">
+        update novel_setting
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="contentHtml != null">content_html = #{contentHtml},</if>
+            <if test="versionNo != null">version_no = #{versionNo},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where setting_id = #{settingId}
+    </update>
+
+</mapper>

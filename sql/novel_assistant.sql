@@ -298,6 +298,8 @@ insert into sys_menu values('2012', '章节新增', '2010', '2', '', '', '', '',
 insert into sys_menu values('2013', '章节修改', '2010', '3', '', '', '', '', 1, 0, 'F', '0', '0', 'novel:chapter:edit', '#', 'admin', sysdate(), '', null, '');
 insert into sys_menu values('2014', '章节删除', '2010', '4', '', '', '', '', 1, 0, 'F', '0', '0', 'novel:chapter:remove', '#', 'admin', sysdate(), '', null, '');
 insert into sys_menu values('2020', '设定中心', '2000', '3', 'setting', 'novel/setting/index', '', '', 1, 0, 'C', '0', '0', 'novel:setting:list', 'form', 'admin', sysdate(), '', null, '设定中心');
+insert into sys_menu values('2021', '设定查询', '2020', '1', '', '', '', '', 1, 0, 'F', '0', '0', 'novel:setting:query', '#', 'admin', sysdate(), '', null, '');
+insert into sys_menu values('2022', '设定修改', '2020', '2', '', '', '', '', 1, 0, 'F', '0', '0', 'novel:setting:edit', '#', 'admin', sysdate(), '', null, '');
 insert into sys_menu values('2030', 'Meta图谱', '2000', '4', 'meta', 'novel/meta/index', '', '', 1, 0, 'C', '0', '0', 'novel:meta:list', 'tree', 'admin', sysdate(), '', null, 'Meta关系图谱');
 insert into sys_menu values('2040', 'AI助手', '2000', '5', 'ai', 'novel/ai/index', '', '', 1, 0, 'C', '0', '0', 'novel:ai:chat', 'message', 'admin', sysdate(), '', null, 'AI创作助手');
 insert into sys_menu values('2041', 'AI续写', '2040', '1', '', '', '', '', 1, 0, 'F', '0', '0', 'novel:ai:continue', '#', 'admin', sysdate(), '', null, '');
@@ -306,17 +308,23 @@ insert into sys_menu values('2042', 'AI审查', '2040', '2', '', '', '', '', 1, 
 -- 普通角色（role_id=2）授权小说创作菜单
 insert into sys_role_menu values ('2', '2000');
 insert into sys_role_menu values ('2', '2001');
-insert into sys_role_menu values ('2', '2002');*/
-/*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************
+insert into sys_role_menu values ('2', '2002');
 insert into sys_role_menu values ('2', '2003');
 insert into sys_role_menu values ('2', '2004');
+insert into sys_role_menu values ('2', '2005');
+insert into sys_role_menu values ('2', '2006');
 insert into sys_role_menu values ('2', '2010');
 insert into sys_role_menu values ('2', '2011');
 insert into sys_role_menu values ('2', '2012');
 insert into sys_role_menu values ('2', '2013');
+insert into sys_role_menu values ('2', '2014');
 insert into sys_role_menu values ('2', '2020');
+insert into sys_role_menu values ('2', '2021');
+insert into sys_role_menu values ('2', '2022');
+insert into sys_role_menu values ('2', '2030');
 insert into sys_role_menu values ('2', '2040');
 insert into sys_role_menu values ('2', '2041');
+insert into sys_role_menu values ('2', '2042');
 
 -- ----------------------------
 -- 16、字典类型（小说类型）
