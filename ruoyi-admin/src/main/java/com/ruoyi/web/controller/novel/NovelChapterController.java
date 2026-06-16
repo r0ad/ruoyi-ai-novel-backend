@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -19,6 +20,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.novel.domain.NovelChapter;
 import com.ruoyi.novel.service.INovelChapterService;
+import com.ruoyi.novel.service.INovelChapterVersionService;
 
 /**
  * 小说章节 Controller
@@ -31,6 +33,9 @@ public class NovelChapterController extends BaseController
 {
     @Autowired
     private INovelChapterService novelChapterService;
+
+    @Autowired
+    private INovelChapterVersionService novelChapterVersionService;
 
     /**
      * 查询章节列表
@@ -52,6 +57,48 @@ public class NovelChapterController extends BaseController
     public AjaxResult tree(@PathVariable Long projectId)
     {
         return success(novelChapterService.selectNovelChapterTreeByProjectId(projectId));
+    }
+
+    /**
+     * 查询章节版本历史
+     */
+    @PreAuthorize("@ss.hasPermi('novel:chapter:query')")
+    @GetMapping("/{chapterId}/versions")
+    public AjaxResult versions(@PathVariable Long chapterId)
+    {
+        return success(novelChapterVersionService.selectVersionsByChapterId(chapterId));
+    }
+
+    /**
+     * 对比两个版本
+     */
+    @PreAuthorize("@ss.hasPermi('novel:chapter:query')")
+    @GetMapping("/{chapterId}/versions/compare")
+    public AjaxResult compareVersions(@PathVariable Long chapterId,
+            @RequestParam Integer fromVersionNo, @RequestParam Integer toVersionNo)
+    {
+        return success(novelChapterVersionService.compareVersions(chapterId, fromVersionNo, toVersionNo));
+    }
+
+    /**
+     * 获取指定版本详情
+     */
+    @PreAuthorize("@ss.hasPermi('novel:chapter:query')")
+    @GetMapping("/{chapterId}/versions/{versionNo}")
+    public AjaxResult versionDetail(@PathVariable Long chapterId, @PathVariable Integer versionNo)
+    {
+        return success(novelChapterVersionService.selectVersion(chapterId, versionNo));
+    }
+
+    /**
+     * 回滚到指定版本
+     */
+    @PreAuthorize("@ss.hasPermi('novel:chapter:edit')")
+    @Log(title = "章节版本回滚", businessType = BusinessType.UPDATE)
+    @PostMapping("/{chapterId}/revert/{versionNo}")
+    public AjaxResult revert(@PathVariable Long chapterId, @PathVariable Integer versionNo)
+    {
+        return toAjax(novelChapterVersionService.revertToVersion(chapterId, versionNo, getUsername()));
     }
 
     /**

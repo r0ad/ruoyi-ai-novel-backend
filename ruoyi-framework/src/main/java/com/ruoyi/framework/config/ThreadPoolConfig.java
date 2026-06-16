@@ -4,7 +4,9 @@ import com.ruoyi.common.utils.Threads;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -40,6 +42,23 @@ public class ThreadPoolConfig
         // 线程池对拒绝任务(无线程可用)的处理策略
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         return executor;
+    }
+
+    /**
+     * Spring MVC 异步请求（SSE / Flux 流式响应）专用线程池
+     */
+    @Bean(name = "mvcAsyncTaskExecutor")
+    public AsyncTaskExecutor mvcAsyncTaskExecutor()
+    {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(50);
+        executor.setQueueCapacity(200);
+        executor.setKeepAliveSeconds(60);
+        executor.setThreadNamePrefix("mvc-async-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.initialize();
+        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 
     /**

@@ -14,6 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.filter.CorsFilter;
+import jakarta.servlet.DispatcherType;
 import com.ruoyi.framework.config.properties.PermitAllUrlProperties;
 import com.ruoyi.framework.security.filter.JwtAuthenticationTokenFilter;
 import com.ruoyi.framework.security.handle.AuthenticationEntryPointImpl;
@@ -98,6 +99,8 @@ public class SecurityConfig
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // 注解标记允许匿名访问的url
             .authorizeHttpRequests((requests) -> {
+                // SSE/Flux 等异步响应会触发 ASYNC dispatch，SecurityContext 不在该线程，需放行内部二次 dispatch
+                requests.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll();
                 permitAllUrl.getUrls().forEach(url -> requests.requestMatchers(url).permitAll());
                 // 对于登录login 注册register 验证码captchaImage 允许匿名访问
                 requests.requestMatchers("/login", "/register", "/captchaImage").permitAll()

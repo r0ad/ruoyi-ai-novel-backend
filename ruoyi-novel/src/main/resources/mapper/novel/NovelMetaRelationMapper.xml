@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.mapper.NovelMetaRelationMapper">
+
+    <resultMap type="NovelMetaRelation" id="NovelMetaRelationResult">
+        <result property="relationId" column="relation_id" />
+        <result property="projectId" column="project_id" />
+        <result property="sourceId" column="source_id" />
+        <result property="targetId" column="target_id" />
+        <result property="relationType" column="relation_type" />
+        <result property="weight" column="weight" />
+        <result property="evidence" column="evidence" />
+        <result property="chapterId" column="chapter_id" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="sourceName" column="source_name" />
+        <result property="targetName" column="target_name" />
+    </resultMap>
+
+    <sql id="selectVo">
+        select r.relation_id, r.project_id, r.source_id, r.target_id, r.relation_type, r.weight,
+               r.evidence, r.chapter_id, r.create_by, r.create_time,
+               s.name as source_name, t.name as target_name
+        from novel_meta_relation r
+        left join novel_meta_entity s on r.source_id = s.entity_id
+        left join novel_meta_entity t on r.target_id = t.entity_id
+    </sql>
+
+    <select id="selectNovelMetaRelationByRelationId" parameterType="Long" resultMap="NovelMetaRelationResult">
+        <include refid="selectVo"/> where r.relation_id = #{relationId}
+    </select>
+
+    <select id="selectNovelMetaRelationList" parameterType="NovelMetaRelation" resultMap="NovelMetaRelationResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="projectId != null">and r.project_id = #{projectId}</if>
+            <if test="sourceId != null">and r.source_id = #{sourceId}</if>
+            <if test="targetId != null">and r.target_id = #{targetId}</if>
+            <if test="relationType != null and relationType != ''">and r.relation_type = #{relationType}</if>
+        </where>
+        order by r.relation_id desc
+    </select>
+
+    <insert id="insertNovelMetaRelation" parameterType="NovelMetaRelation" useGeneratedKeys="true" keyProperty="relationId">
+        insert into novel_meta_relation (
+            project_id, source_id, target_id, relation_type, weight, evidence, chapter_id, create_by, create_time
+        ) values (
+            #{projectId}, #{sourceId}, #{targetId}, #{relationType}, #{weight}, #{evidence}, #{chapterId}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateNovelMetaRelation" parameterType="NovelMetaRelation">
+        update novel_meta_relation
+        <set>
+            <if test="sourceId != null">source_id = #{sourceId},</if>
+            <if test="targetId != null">target_id = #{targetId},</if>
+            <if test="relationType != null and relationType != ''">relation_type = #{relationType},</if>
+            <if test="weight != null">weight = #{weight},</if>
+            <if test="evidence != null">evidence = #{evidence},</if>
+            <if test="chapterId != null">chapter_id = #{chapterId},</if>
+        </set>
+        where relation_id = #{relationId}
+    </update>
+
+    <delete id="deleteNovelMetaRelationByRelationIds" parameterType="Long">
+        delete from novel_meta_relation where relation_id in
+        <foreach collection="array" item="relationId" open="(" separator="," close=")">#{relationId}</foreach>
+    </delete>
+
+    <delete id="deleteNovelMetaRelationByEntityIds" parameterType="Long">
+        delete from novel_meta_relation where source_id in
+        <foreach collection="array" item="entityId" open="(" separator="," close=")">#{entityId}</foreach>
+        or target_id in
+        <foreach collection="array" item="entityId" open="(" separator="," close=")">#{entityId}</foreach>
+    </delete>
+
+</mapper>

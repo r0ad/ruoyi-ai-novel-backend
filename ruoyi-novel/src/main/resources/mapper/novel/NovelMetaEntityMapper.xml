@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.mapper.NovelMetaEntityMapper">
+
+    <resultMap type="NovelMetaEntity" id="NovelMetaEntityResult">
+        <result property="entityId" column="entity_id" />
+        <result property="projectId" column="project_id" />
+        <result property="entityType" column="entity_type" />
+        <result property="name" column="name" />
+        <result property="aliases" column="aliases" />
+        <result property="attributes" column="attributes" />
+        <result property="description" column="description" />
+        <result property="firstChapterId" column="first_chapter_id" />
+        <result property="lastChapterId" column="last_chapter_id" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="selectVo">
+        select entity_id, project_id, entity_type, name, aliases, attributes, description,
+               first_chapter_id, last_chapter_id, create_by, create_time, update_by, update_time
+        from novel_meta_entity
+    </sql>
+
+    <select id="selectNovelMetaEntityByEntityId" parameterType="Long" resultMap="NovelMetaEntityResult">
+        <include refid="selectVo"/> where entity_id = #{entityId}
+    </select>
+
+    <select id="selectNovelMetaEntityList" parameterType="NovelMetaEntity" resultMap="NovelMetaEntityResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="projectId != null">and project_id = #{projectId}</if>
+            <if test="entityType != null and entityType != ''">and entity_type = #{entityType}</if>
+            <if test="name != null and name != ''">and name like concat('%', #{name}, '%')</if>
+        </where>
+        order by entity_type asc, name asc
+    </select>
+
+    <insert id="insertNovelMetaEntity" parameterType="NovelMetaEntity" useGeneratedKeys="true" keyProperty="entityId">
+        insert into novel_meta_entity (
+            project_id, entity_type, name, aliases, attributes, description,
+            first_chapter_id, last_chapter_id, create_by, create_time
+        ) values (
+            #{projectId}, #{entityType}, #{name}, #{aliases}, #{attributes}, #{description},
+            #{firstChapterId}, #{lastChapterId}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateNovelMetaEntity" parameterType="NovelMetaEntity">
+        update novel_meta_entity
+        <set>
+            <if test="entityType != null and entityType != ''">entity_type = #{entityType},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="aliases != null">aliases = #{aliases},</if>
+            <if test="attributes != null">attributes = #{attributes},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="firstChapterId != null">first_chapter_id = #{firstChapterId},</if>
+            <if test="lastChapterId != null">last_chapter_id = #{lastChapterId},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where entity_id = #{entityId}
+    </update>
+
+    <delete id="deleteNovelMetaEntityByEntityIds" parameterType="Long">
+        delete from novel_meta_entity where entity_id in
+        <foreach collection="array" item="entityId" open="(" separator="," close=")">#{entityId}</foreach>
+    </delete>
+
+</mapper>

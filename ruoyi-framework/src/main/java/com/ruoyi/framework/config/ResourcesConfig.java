@@ -2,12 +2,15 @@ package com.ruoyi.framework.config;
 
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.http.CacheControl;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -25,6 +28,18 @@ public class ResourcesConfig implements WebMvcConfigurer
 {
     @Autowired
     private RepeatSubmitInterceptor repeatSubmitInterceptor;
+
+    @Autowired
+    @Qualifier("mvcAsyncTaskExecutor")
+    private AsyncTaskExecutor mvcAsyncTaskExecutor;
+
+    @Override
+    public void configureAsyncSupport(AsyncSupportConfigurer configurer)
+    {
+        configurer.setTaskExecutor(mvcAsyncTaskExecutor);
+        // AI 流式续写可能较慢，默认 30s 易超时
+        configurer.setDefaultTimeout(300_000L);
+    }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry)

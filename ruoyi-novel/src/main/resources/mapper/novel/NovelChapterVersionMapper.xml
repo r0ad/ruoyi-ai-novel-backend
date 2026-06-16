@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.mapper.NovelChapterVersionMapper">
+
+    <resultMap type="NovelChapterVersion" id="NovelChapterVersionResult">
+        <result property="versionId" column="version_id" />
+        <result property="chapterId" column="chapter_id" />
+        <result property="versionNo" column="version_no" />
+        <result property="title" column="title" />
+        <result property="content" column="content" />
+        <result property="summary" column="summary" />
+        <result property="changeLog" column="change_log" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+    </resultMap>
+
+    <select id="selectVersionsByChapterId" parameterType="Long" resultMap="NovelChapterVersionResult">
+        select version_id, chapter_id, version_no, title, summary, change_log, create_by, create_time
+        from novel_chapter_version
+        where chapter_id = #{chapterId}
+        order by version_no desc
+    </select>
+
+    <select id="selectVersionByChapterAndNo" parameterType="NovelChapterVersion" resultMap="NovelChapterVersionResult">
+        select version_id, chapter_id, version_no, title, content, summary, change_log, create_by, create_time
+        from novel_chapter_version
+        where chapter_id = #{chapterId} and version_no = #{versionNo}
+    </select>
+
+</mapper>
