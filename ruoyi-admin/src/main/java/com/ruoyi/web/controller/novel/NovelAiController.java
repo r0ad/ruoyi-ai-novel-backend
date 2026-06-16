@@ -1,5 +1,6 @@
 package com.ruoyi.web.controller.novel;
 
+import java.util.Collections;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,7 +31,8 @@ public class NovelAiController extends BaseController
     @PostMapping("/chat")
     public AjaxResult chat(@RequestBody NovelAiChatRequest request)
     {
-        return success(novelAiService.chat(request));
+        String content = novelAiService.chat(request);
+        return success(Collections.singletonMap("content", content));
     }
 
     @PreAuthorize("@ss.hasPermi('novel:ai:continue')")

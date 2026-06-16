@@ -1,6 +1,7 @@
 package com.ruoyi.novel.ai.service.impl;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,11 +43,10 @@ public class NovelAiServiceImpl implements INovelAiService
         {
             throw new ServiceException("消息内容不能为空");
         }
-        return resolveChatClient().prompt()
+        return extractAssistantText(resolveChatClient().prompt()
             .system(buildSystemPrompt(request))
             .user(request.getMessage())
-            .call()
-            .content();
+            .call());
     }
 
     @Override
@@ -85,6 +85,25 @@ public class NovelAiServiceImpl implements INovelAiService
                 .build();
         }
         return null;
+    }
+
+    private String extractAssistantText(ChatClient.CallResponseSpec callResponse)
+    {
+        String content = callResponse.content();
+        if (StringUtils.isNotEmpty(content))
+        {
+            return content;
+        }
+        ChatResponse chatResponse = callResponse.chatResponse();
+        if (chatResponse != null && chatResponse.getResult() != null && chatResponse.getResult().getOutput() != null)
+        {
+            content = chatResponse.getResult().getOutput().getText();
+        }
+        if (StringUtils.isEmpty(content))
+        {
+            throw new ServiceException("AI 返回内容为空");
+        }
+        return content;
     }
 
     private String buildSystemPrompt(NovelAiChatRequest request)
