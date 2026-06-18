@@ -1,12 +1,11 @@
 package com.ruoyi.novel.ai.service.impl;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.novel.ai.config.NovelAiModelFactory;
 import com.ruoyi.novel.ai.domain.NovelAiChatRequest;
 import com.ruoyi.novel.ai.service.INovelAiService;
 import com.ruoyi.novel.domain.NovelChapter;
@@ -20,11 +19,8 @@ import reactor.core.publisher.Flux;
 @Service
 public class NovelAiServiceImpl implements INovelAiService
 {
-    @Autowired(required = false)
-    private ChatClient novelChatClient;
-
-    @Autowired(required = false)
-    private OpenAiChatModel openAiChatModel;
+    @Autowired
+    private NovelAiModelFactory novelAiModelFactory;
 
     @Autowired
     private INovelProjectService novelProjectService;
@@ -68,23 +64,13 @@ public class NovelAiServiceImpl implements INovelAiService
     {
         if (resolveChatClient() == null)
         {
-            throw new ServiceException("Spring AI 未配置，请设置 spring.ai.openai.api-key 或环境变量 OPENAI_API_KEY，并重启后端");
+            throw new ServiceException("未配置激活的 AI 模型，请先在「AI模型管理」中添加并激活模型");
         }
     }
 
     private ChatClient resolveChatClient()
     {
-        if (novelChatClient != null)
-        {
-            return novelChatClient;
-        }
-        if (openAiChatModel != null)
-        {
-            return ChatClient.builder(openAiChatModel)
-                .defaultSystem("你是一位专业网络小说创作助手，请用中文回答。")
-                .build();
-        }
-        return null;
+        return novelAiModelFactory.getChatClient();
     }
 
     private String extractAssistantText(ChatClient.CallResponseSpec callResponse)
@@ -94,16 +80,7 @@ public class NovelAiServiceImpl implements INovelAiService
         {
             return content;
         }
-        ChatResponse chatResponse = callResponse.chatResponse();
-        if (chatResponse != null && chatResponse.getResult() != null && chatResponse.getResult().getOutput() != null)
-        {
-            content = chatResponse.getResult().getOutput().getText();
-        }
-        if (StringUtils.isEmpty(content))
-        {
-            throw new ServiceException("AI 返回内容为空");
-        }
-        return content;
+        throw new ServiceException("AI 返回内容为空");
     }
 
     private String buildSystemPrompt(NovelAiChatRequest request)

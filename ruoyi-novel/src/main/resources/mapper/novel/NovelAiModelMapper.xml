@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.ai.mapper.NovelAiModelMapper">
+
+    <resultMap type="com.ruoyi.novel.ai.domain.NovelAiModel" id="NovelAiModelResult">
+        <result property="modelId"       column="model_id"       />
+        <result property="modelName"     column="model_name"     />
+        <result property="providerType"  column="provider_type"  />
+        <result property="baseUrl"       column="base_url"       />
+        <result property="apiKey"        column="api_key"        />
+        <result property="modelCode"     column="model_code"     />
+        <result property="temperature"   column="temperature"    />
+        <result property="maxTokens"     column="max_tokens"     />
+        <result property="timeoutMs"     column="timeout_ms"     />
+        <result property="isActive"      column="is_active"      />
+        <result property="isDefault"     column="is_default"     />
+        <result property="sortOrder"     column="sort_order"     />
+        <result property="status"        column="status"         />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"        column="remark"         />
+    </resultMap>
+
+    <sql id="selectNovelAiModelVo">
+        select model_id, model_name, provider_type, base_url, api_key, model_code,
+               temperature, max_tokens, timeout_ms, is_active, is_default, sort_order,
+               status, create_by, create_time, update_by, update_time, remark
+        from novel_ai_model
+    </sql>
+
+    <select id="selectNovelAiModelByModelId" parameterType="Long" resultMap="NovelAiModelResult">
+        <include refid="selectNovelAiModelVo"/>
+        where model_id = #{modelId}
+    </select>
+
+    <select id="selectActiveNovelAiModel" resultMap="NovelAiModelResult">
+        <include refid="selectNovelAiModelVo"/>
+        where is_active = '1' and status = '0'
+        limit 1
+    </select>
+
+    <select id="selectNovelAiModelList" parameterType="com.ruoyi.novel.ai.domain.NovelAiModel" resultMap="NovelAiModelResult">
+        <include refid="selectNovelAiModelVo"/>
+        <where>
+            <if test="modelName != null and modelName != ''">
+                AND model_name like concat('%', #{modelName}, '%')
+            </if>
+            <if test="providerType != null and providerType != ''">
+                AND provider_type = #{providerType}
+            </if>
+            <if test="isActive != null and isActive != ''">
+                AND is_active = #{isActive}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        order by sort_order asc, model_id desc
+    </select>
+
+    <insert id="insertNovelAiModel" parameterType="com.ruoyi.novel.ai.domain.NovelAiModel" useGeneratedKeys="true" keyProperty="modelId">
+        insert into novel_ai_model (
+            model_name, provider_type, base_url, api_key, model_code,
+            temperature, max_tokens, timeout_ms, is_active, is_default, sort_order, status,
+            remark, create_by, create_time
+        ) values (
+            #{modelName}, #{providerType}, #{baseUrl}, #{apiKey}, #{modelCode},
+            #{temperature}, #{maxTokens}, #{timeoutMs}, #{isActive}, #{isDefault}, #{sortOrder}, #{status},
+            #{remark}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateNovelAiModel" parameterType="com.ruoyi.novel.ai.domain.NovelAiModel">
+        update novel_ai_model
+        <set>
+            <if test="modelName != null and modelName != ''">model_name = #{modelName},</if>
+            <if test="providerType != null and providerType != ''">provider_type = #{providerType},</if>
+            <if test="baseUrl != null and baseUrl != ''">base_url = #{baseUrl},</if>
+            <if test="apiKey != null and apiKey != ''">api_key = #{apiKey},</if>
+            <if test="modelCode != null and modelCode != ''">model_code = #{modelCode},</if>
+            <if test="temperature != null">temperature = #{temperature},</if>
+            <if test="maxTokens != null">max_tokens = #{maxTokens},</if>
+            <if test="timeoutMs != null">timeout_ms = #{timeoutMs},</if>
+            <if test="isActive != null and isActive != ''">is_active = #{isActive},</if>
+            <if test="isDefault != null and isDefault != ''">is_default = #{isDefault},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where model_id = #{modelId}
+    </update>
+
+    <update id="deactivateAllModels">
+        update novel_ai_model set is_active = '0', update_time = sysdate()
+    </update>
+
+    <update id="activateModel" parameterType="Long">
+        update novel_ai_model set is_active = '1', update_time = sysdate()
+        where model_id = #{modelId}
+    </update>
+
+    <delete id="deleteNovelAiModelByModelId" parameterType="Long">
+        delete from novel_ai_model where model_id = #{modelId}
+    </delete>
+
+    <delete id="deleteNovelAiModelByModelIds" parameterType="Long">
+        delete from novel_ai_model where model_id in
+        <foreach item="modelId" collection="array" open="(" separator="," close=")">
+            #{modelId}
+        </foreach>
+    </delete>
+
+</mapper>
