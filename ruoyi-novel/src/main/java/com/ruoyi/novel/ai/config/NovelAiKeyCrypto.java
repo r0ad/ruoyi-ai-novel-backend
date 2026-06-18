@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 import com.ruoyi.novel.ai.utils.NovelAiKeyUtils;
 
 /**
- * API Key ¼Ó½âÃÜ£¨ÃÜÔ¿È¡×Ô token.secret£©
+ * API Key åŠ è§£å¯†ï¼ˆå¯†é’¥å–è‡ª token.secretï¼‰
  */
 @Component
 public class NovelAiKeyCrypto

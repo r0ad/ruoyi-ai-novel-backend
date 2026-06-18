@@ -4,7 +4,7 @@ import java.util.List;
 import com.ruoyi.novel.ai.domain.NovelAiModel;
 
 /**
- * AI Ä£ĞÍÅäÖÃ Mapper
+ * AI æ¨¡å‹é…ç½® Mapper
  */
 public interface NovelAiModelMapper
 {

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.workflow.mapper.NovelWorkflowStepMapper">
+
+    <resultMap type="com.ruoyi.novel.workflow.domain.NovelWorkflowStep" id="NovelWorkflowStepResult">
+        <result property="stepId" column="step_id"/>
+        <result property="runId" column="run_id"/>
+        <result property="stepCode" column="step_code"/>
+        <result property="status" column="status"/>
+        <result property="inputJson" column="input_json"/>
+        <result property="outputSnapshot" column="output_snapshot"/>
+        <result property="agentSessionId" column="agent_session_id"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="finishedAt" column="finished_at"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select step_id, run_id, step_code, status, input_json, output_snapshot,
+               agent_session_id, error_message, started_at, finished_at, create_time
+        from novel_workflow_step
+    </sql>
+
+    <select id="selectNovelWorkflowStepByStepId" resultMap="NovelWorkflowStepResult">
+        <include refid="selectVo"/> where step_id = #{stepId}
+    </select>
+
+    <select id="selectStepsByRunId" resultMap="NovelWorkflowStepResult">
+        <include refid="selectVo"/> where run_id = #{runId} order by step_id asc
+    </select>
+
+    <select id="selectLatestStepByRunIdAndCode" resultMap="NovelWorkflowStepResult">
+        <include refid="selectVo"/>
+        where run_id = #{runId} and step_code = #{stepCode}
+        order by step_id desc limit 1
+    </select>
+
+    <insert id="insertNovelWorkflowStep" useGeneratedKeys="true" keyProperty="stepId">
+        insert into novel_workflow_step (
+            run_id, step_code, status, input_json, output_snapshot,
+            agent_session_id, error_message, started_at, finished_at, create_time
+        ) values (
+            #{runId}, #{stepCode}, #{status}, #{inputJson}, #{outputSnapshot},
+            #{agentSessionId}, #{errorMessage}, #{startedAt}, #{finishedAt}, sysdate()
+        )
+    </insert>
+
+    <update id="updateNovelWorkflowStep">
+        update novel_workflow_step
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="inputJson != null">input_json = #{inputJson},</if>
+            <if test="outputSnapshot != null">output_snapshot = #{outputSnapshot},</if>
+            <if test="agentSessionId != null">agent_session_id = #{agentSessionId},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
+            <if test="startedAt != null">started_at = #{startedAt},</if>
+            <if test="finishedAt != null">finished_at = #{finishedAt},</if>
+        </set>
+        where step_id = #{stepId}
+    </update>
+</mapper>

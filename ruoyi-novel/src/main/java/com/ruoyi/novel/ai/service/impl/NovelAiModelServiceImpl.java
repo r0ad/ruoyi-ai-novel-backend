@@ -72,12 +72,12 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
     {
         if (novelAiModel.getModelId() == null)
         {
-            throw new ServiceException("???ID???????");
+            throw new ServiceException("模型 ID 不能为空");
         }
         NovelAiModel existing = novelAiModelMapper.selectNovelAiModelByModelId(novelAiModel.getModelId());
         if (existing == null)
         {
-            throw new ServiceException("??????��?????");
+            throw new ServiceException("模型配置不存在");
         }
         validateModel(novelAiModel, false);
         if (NovelAiKeyUtils.isMaskedValue(novelAiModel.getApiKey()))
@@ -105,7 +105,7 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
             NovelAiModel model = novelAiModelMapper.selectNovelAiModelByModelId(modelId);
             if (model != null && "1".equals(model.getIsActive()))
             {
-                throw new ServiceException("???????????????????" + model.getModelName());
+                throw new ServiceException("不能删除当前激活的模型：" + model.getModelName());
             }
         }
         return novelAiModelMapper.deleteNovelAiModelByModelIds(modelIds);
@@ -118,11 +118,11 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
         NovelAiModel model = novelAiModelMapper.selectNovelAiModelByModelId(modelId);
         if (model == null)
         {
-            throw new ServiceException("??????��?????");
+            throw new ServiceException("模型配置不存在");
         }
         if ("1".equals(model.getStatus()))
         {
-            throw new ServiceException("???????????????");
+            throw new ServiceException("已停用的模型不可激活");
         }
         novelAiModelMapper.deactivateAllModels();
         int rows = novelAiModelMapper.activateModel(modelId);
@@ -136,7 +136,7 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
         NovelAiModel model = novelAiModelMapper.selectNovelAiModelByModelId(modelId);
         if (model == null)
         {
-            throw new ServiceException("??????��?????");
+            throw new ServiceException("模型配置不存在");
         }
         String plainKey = novelAiKeyCrypto.decrypt(model.getApiKey());
         return novelAiModelFactory.testModel(model, plainKey);
@@ -154,32 +154,32 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
     {
         if (model == null)
         {
-            throw new ServiceException("??????��??????");
+            throw new ServiceException("模型配置不能为空");
         }
         if (StringUtils.isEmpty(model.getModelName()))
         {
-            throw new ServiceException("?????????????");
+            throw new ServiceException("模型名称不能为空");
         }
         if (StringUtils.isEmpty(model.getProviderType()))
         {
-            throw new ServiceException("��????????????");
+            throw new ServiceException("协议类型不能为空");
         }
         if (StringUtils.isEmpty(model.getBaseUrl()))
         {
-            throw new ServiceException("Base URL ???????");
+            throw new ServiceException("Base URL 不能为空");
         }
         if (StringUtils.isEmpty(model.getModelCode()))
         {
-            throw new ServiceException("????????????");
+            throw new ServiceException("模型标识不能为空");
         }
         if (requireApiKey && StringUtils.isEmpty(model.getApiKey()))
         {
-            throw new ServiceException("API Key ???????");
+            throw new ServiceException("API Key 不能为空");
         }
         String provider = model.getProviderType().toLowerCase();
         if (!NovelAiModel.PROVIDER_OPENAI.equals(provider) && !NovelAiModel.PROVIDER_ANTHROPIC.equals(provider))
         {
-            throw new ServiceException("??????��???????" + model.getProviderType());
+            throw new ServiceException("不支持的协议类型：" + model.getProviderType());
         }
     }
 

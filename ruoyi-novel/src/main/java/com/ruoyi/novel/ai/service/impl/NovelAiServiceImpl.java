@@ -13,6 +13,9 @@ import com.ruoyi.novel.domain.NovelProject;
 import com.ruoyi.novel.domain.NovelSetting;
 import com.ruoyi.novel.service.INovelChapterService;
 import com.ruoyi.novel.service.INovelProjectService;
+import com.ruoyi.novel.domain.NovelMetaEntity;
+import com.ruoyi.novel.domain.NovelMetaGraph;
+import com.ruoyi.novel.service.INovelMetaService;
 import com.ruoyi.novel.service.INovelSettingService;
 import reactor.core.publisher.Flux;
 
@@ -31,6 +34,9 @@ public class NovelAiServiceImpl implements INovelAiService
     @Autowired
     private INovelSettingService novelSettingService;
 
+    @Autowired
+    private INovelMetaService novelMetaService;
+
     @Override
     public String chat(NovelAiChatRequest request)
     {
@@ -43,6 +49,110 @@ public class NovelAiServiceImpl implements INovelAiService
             .system(buildSystemPrompt(request))
             .user(request.getMessage())
             .call());
+    }
+
+    @Override
+    public String reviewChapter(Long projectId, Long chapterId)
+    {
+        ensureChatClient();
+        NovelChapter chapter = novelChapterService.selectNovelChapterByChapterId(chapterId);
+        if (chapter == null || !chapter.getProjectId().equals(projectId))
+        {
+            throw new ServiceException("章节不存在");
+        }
+        StringBuilder user = new StringBuilder("请审查以下章节与设定、Meta 图谱的一致性，输出 JSON 数组格式问题列表：\n");
+        user.append("【章节】").append(chapter.getTitle()).append("\n");
+        if (StringUtils.isNotEmpty(chapter.getContent()))
+        {
+            user.append(chapter.getContent());
+        }
+        StringBuilder system = new StringBuilder("你是小说一致性审查专家，请用中文输出结构化审查报告。");
+        appendProjectContext(system, projectId);
+        appendSettingContext(system, projectId);
+        NovelMetaGraph graph = novelMetaService.selectGraphByProjectId(projectId);
+        if (graph != null)
+        {
+            user.append("\n【Meta图谱】").append(com.alibaba.fastjson2.JSON.toJSONString(graph));
+        }
+        return extractAssistantText(resolveChatClient().prompt().system(system.toString()).user(user.toString()).call());
+    }
+
+    @Override
+    public String reviewProject(Long projectId)
+    {
+        ensureChatClient();
+        StringBuilder user = new StringBuilder("请对全书进行一致性审查，涵盖角色、世界观、情节连贯性：\n");
+        appendSettingContext(user, projectId);
+        NovelMetaGraph graph = novelMetaService.selectGraphByProjectId(projectId);
+        if (graph != null)
+        {
+            user.append("\n【Meta图谱】").append(com.alibaba.fastjson2.JSON.toJSONString(graph));
+        }
+        NovelChapter query = new NovelChapter();
+        query.setProjectId(projectId);
+        for (NovelChapter ch : novelChapterService.selectNovelChapterList(query))
+        {
+            user.append("\n【第").append(ch.getChapterNumber()).append("章 ").append(ch.getTitle()).append("】");
+            if (StringUtils.isNotEmpty(ch.getSummary()))
+            {
+                user.append("\n摘要：").append(ch.getSummary());
+            }
+        }
+        StringBuilder system = new StringBuilder("你是小说终审编辑，请输出完整审查报告与修改建议。");
+        appendProjectContext(system, projectId);
+        return extractAssistantText(resolveChatClient().prompt().system(system.toString()).user(user.toString()).call());
+    }
+
+    @Override
+    public String extractMeta(Long projectId, Long chapterId)
+    {
+        ensureChatClient();
+        NovelChapter chapter = novelChapterService.selectNovelChapterByChapterId(chapterId);
+        if (chapter == null || !chapter.getProjectId().equals(projectId))
+        {
+            throw new ServiceException("章节不存在");
+        }
+        String prompt = "从以下章节正文抽取角色、地点、物品实体及关系，以 JSON 返回 entities 和 relations 数组：\n"
+            + (chapter.getContent() != null ? chapter.getContent() : "");
+        String json = extractAssistantText(resolveChatClient().prompt()
+            .system("你是信息抽取专家，仅输出 JSON。")
+            .user(prompt)
+            .call());
+        persistExtractedMeta(projectId, chapterId, json);
+        return json;
+    }
+
+    private void persistExtractedMeta(Long projectId, Long chapterId, String json)
+    {
+        try
+        {
+            com.alibaba.fastjson2.JSONObject root = com.alibaba.fastjson2.JSON.parseObject(json);
+            if (root == null)
+            {
+                return;
+            }
+            com.alibaba.fastjson2.JSONArray entities = root.getJSONArray("entities");
+            if (entities != null)
+            {
+                for (int i = 0; i < entities.size(); i++)
+                {
+                    com.alibaba.fastjson2.JSONObject item = entities.getJSONObject(i);
+                    NovelMetaEntity entity = new NovelMetaEntity();
+                    entity.setProjectId(projectId);
+                    entity.setEntityType(item.getString("entityType"));
+                    entity.setName(item.getString("name"));
+                    entity.setDescription(item.getString("description"));
+                    entity.setLastChapterId(chapterId);
+                    if (StringUtils.isNotEmpty(entity.getName()) && StringUtils.isNotEmpty(entity.getEntityType()))
+                    {
+                        novelMetaService.insertEntity(entity);
+                    }
+                }
+            }
+        }
+        catch (Exception ignored)
+        {
+        }
     }
 
     @Override

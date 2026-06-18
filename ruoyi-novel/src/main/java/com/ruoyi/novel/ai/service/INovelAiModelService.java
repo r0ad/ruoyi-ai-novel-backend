@@ -4,7 +4,7 @@ import java.util.List;
 import com.ruoyi.novel.ai.domain.NovelAiModel;
 
 /**
- * AI Ä£ĞÍÅäÖÃ Service
+ * AI æ¨¡å‹é…ç½® Service
  */
 public interface INovelAiModelService
 {

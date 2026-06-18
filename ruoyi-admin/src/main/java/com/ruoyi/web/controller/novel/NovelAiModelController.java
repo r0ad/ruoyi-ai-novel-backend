@@ -22,7 +22,7 @@ import com.ruoyi.novel.ai.domain.NovelAiModel;
 import com.ruoyi.novel.ai.service.INovelAiModelService;
 
 /**
- * AI Ä£ĞÍÅäÖÃ Controller
+ * AI æ¨¡å‹é…ç½® Controller
  */
 @RestController
 @RequestMapping("/novel/ai-model")
@@ -55,7 +55,7 @@ public class NovelAiModelController extends BaseController
     }
 
     @PreAuthorize("@ss.hasPermi('novel:aimodel:add')")
-    @Log(title = "AIÄ£ĞÍÅäÖÃ", businessType = BusinessType.INSERT)
+    @Log(title = "AIæ¨¡å‹é…ç½®", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult add(@Validated @RequestBody NovelAiModel novelAiModel)
     {
@@ -64,7 +64,7 @@ public class NovelAiModelController extends BaseController
     }
 
     @PreAuthorize("@ss.hasPermi('novel:aimodel:edit')")
-    @Log(title = "AIÄ£ĞÍÅäÖÃ", businessType = BusinessType.UPDATE)
+    @Log(title = "AIæ¨¡å‹é…ç½®", businessType = BusinessType.UPDATE)
     @PutMapping
     public AjaxResult edit(@Validated @RequestBody NovelAiModel novelAiModel)
     {
@@ -73,7 +73,7 @@ public class NovelAiModelController extends BaseController
     }
 
     @PreAuthorize("@ss.hasPermi('novel:aimodel:remove')")
-    @Log(title = "AIÄ£ĞÍÅäÖÃ", businessType = BusinessType.DELETE)
+    @Log(title = "AIæ¨¡å‹é…ç½®", businessType = BusinessType.DELETE)
     @DeleteMapping("/{modelIds}")
     public AjaxResult remove(@PathVariable Long[] modelIds)
     {
@@ -81,7 +81,7 @@ public class NovelAiModelController extends BaseController
     }
 
     @PreAuthorize("@ss.hasPermi('novel:aimodel:activate')")
-    @Log(title = "AIÄ£ĞÍ¼¤»î", businessType = BusinessType.UPDATE)
+    @Log(title = "AIæ¨¡å‹æ¿€æ´»", businessType = BusinessType.UPDATE)
     @PutMapping("/{modelId}/activate")
     public AjaxResult activate(@PathVariable Long modelId)
     {
@@ -89,7 +89,7 @@ public class NovelAiModelController extends BaseController
     }
 
     @PreAuthorize("@ss.hasPermi('novel:aimodel:test')")
-    @Log(title = "AIÄ£ĞÍÁ¬Í¨ĞÔ²âÊÔ", businessType = BusinessType.OTHER)
+    @Log(title = "AIæ¨¡å‹è¿é€šæ€§æµ‹è¯•", businessType = BusinessType.OTHER)
     @PostMapping("/{modelId}/test")
     public AjaxResult testById(@PathVariable Long modelId)
     {
@@ -98,7 +98,7 @@ public class NovelAiModelController extends BaseController
     }
 
     @PreAuthorize("@ss.hasPermi('novel:aimodel:test')")
-    @Log(title = "AIÄ£ĞÍÁ¬Í¨ĞÔ²âÊÔ", businessType = BusinessType.OTHER)
+    @Log(title = "AIæ¨¡å‹è¿é€šæ€§æµ‹è¯•", businessType = BusinessType.OTHER)
     @PostMapping("/test")
     public AjaxResult test(@RequestBody NovelAiModel novelAiModel)
     {

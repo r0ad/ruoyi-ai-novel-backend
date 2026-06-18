@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.rag.mapper.NovelRagChunkMapper">
+
+    <resultMap type="com.ruoyi.novel.rag.domain.NovelRagChunk" id="NovelRagChunkResult">
+        <result property="chunkId" column="chunk_id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="sourceType" column="source_type"/>
+        <result property="sourceId" column="source_id"/>
+        <result property="chunkIndex" column="chunk_index"/>
+        <result property="content" column="content"/>
+        <result property="vectorId" column="vector_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectByProjectId" resultMap="NovelRagChunkResult">
+        select chunk_id, project_id, source_type, source_id, chunk_index, content, vector_id, create_time, update_time
+        from novel_rag_chunk where project_id = #{projectId} order by chunk_id asc
+    </select>
+
+    <select id="searchByKeyword" resultMap="NovelRagChunkResult">
+        select chunk_id, project_id, source_type, source_id, chunk_index, content, vector_id, create_time, update_time
+        from novel_rag_chunk
+        where project_id = #{projectId}
+          and content like concat('%', #{keyword}, '%')
+        order by chunk_id desc
+        limit #{limit}
+    </select>
+
+    <delete id="deleteByProjectAndSource">
+        delete from novel_rag_chunk
+        where project_id = #{projectId} and source_type = #{sourceType} and source_id = #{sourceId}
+    </delete>
+
+    <insert id="insertNovelRagChunk" useGeneratedKeys="true" keyProperty="chunkId">
+        insert into novel_rag_chunk (project_id, source_type, source_id, chunk_index, content, create_time)
+        values (#{projectId}, #{sourceType}, #{sourceId}, #{chunkIndex}, #{content}, sysdate())
+    </insert>
+</mapper>

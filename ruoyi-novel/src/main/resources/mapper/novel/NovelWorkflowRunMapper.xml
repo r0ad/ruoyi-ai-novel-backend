@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.workflow.mapper.NovelWorkflowRunMapper">
+
+    <resultMap type="com.ruoyi.novel.workflow.domain.NovelWorkflowRun" id="NovelWorkflowRunResult">
+        <result property="runId" column="run_id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="workflowType" column="workflow_type"/>
+        <result property="status" column="status"/>
+        <result property="currentStep" column="current_step"/>
+        <result property="contextJson" column="context_json"/>
+        <result property="userIdea" column="user_idea"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select run_id, project_id, user_id, workflow_type, status, current_step,
+               context_json, user_idea, create_by, create_time, update_by, update_time
+        from novel_workflow_run
+    </sql>
+
+    <select id="selectNovelWorkflowRunByRunId" resultMap="NovelWorkflowRunResult">
+        <include refid="selectVo"/> where run_id = #{runId}
+    </select>
+
+    <select id="selectActiveRunByProjectId" resultMap="NovelWorkflowRunResult">
+        <include refid="selectVo"/>
+        where project_id = #{projectId}
+          and status in ('running', 'paused', 'waiting_confirm')
+        order by run_id desc limit 1
+    </select>
+
+    <select id="selectNovelWorkflowRunList" resultMap="NovelWorkflowRunResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="projectId != null">and project_id = #{projectId}</if>
+            <if test="userId != null">and user_id = #{userId}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+        </where>
+        order by run_id desc
+    </select>
+
+    <insert id="insertNovelWorkflowRun" useGeneratedKeys="true" keyProperty="runId">
+        insert into novel_workflow_run (
+            project_id, user_id, workflow_type, status, current_step,
+            context_json, user_idea, create_by, create_time
+        ) values (
+            #{projectId}, #{userId}, #{workflowType}, #{status}, #{currentStep},
+            #{contextJson}, #{userIdea}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateNovelWorkflowRun">
+        update novel_workflow_run
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="currentStep != null">current_step = #{currentStep},</if>
+            <if test="contextJson != null">context_json = #{contextJson},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where run_id = #{runId}
+    </update>
+</mapper>

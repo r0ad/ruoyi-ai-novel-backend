@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.ai.session.mapper.NovelAiMessageMapper">
+
+    <resultMap type="com.ruoyi.novel.ai.session.domain.NovelAiMessage" id="NovelAiMessageResult">
+        <result property="messageId" column="message_id"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="role" column="role"/>
+        <result property="content" column="content"/>
+        <result property="tokenUsage" column="token_usage"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectMessagesBySessionId" resultMap="NovelAiMessageResult">
+        select message_id, session_id, role, content, token_usage, create_time
+        from novel_ai_message where session_id = #{sessionId} order by message_id asc
+    </select>
+
+    <insert id="insertNovelAiMessage" useGeneratedKeys="true" keyProperty="messageId">
+        insert into novel_ai_message (session_id, role, content, token_usage, create_time)
+        values (#{sessionId}, #{role}, #{content}, #{tokenUsage}, sysdate())
+    </insert>
+</mapper>

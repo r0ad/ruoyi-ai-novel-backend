@@ -19,6 +19,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.novel.domain.NovelChapter;
+import com.ruoyi.novel.rag.service.INovelContextService;
 import com.ruoyi.novel.service.INovelChapterService;
 import com.ruoyi.novel.service.INovelChapterVersionService;
 
@@ -36,6 +37,9 @@ public class NovelChapterController extends BaseController
 
     @Autowired
     private INovelChapterVersionService novelChapterVersionService;
+
+    @Autowired
+    private INovelContextService novelContextService;
 
     /**
      * 查询章节列表
@@ -134,6 +138,22 @@ public class NovelChapterController extends BaseController
     {
         novelChapter.setUpdateBy(getUsername());
         return toAjax(novelChapterService.updateNovelChapter(novelChapter));
+    }
+
+    @PreAuthorize("@ss.hasPermi('novel:chapter:query')")
+    @GetMapping("/{chapterId}/context")
+    public AjaxResult getWritingContext(@PathVariable Long chapterId,
+        @RequestParam(defaultValue = "1") int rangeBefore)
+    {
+        NovelChapter chapter = novelChapterService.selectNovelChapterByChapterId(chapterId);
+        if (chapter == null)
+        {
+            return error("章节不存在");
+        }
+        int chapterNumber = chapter.getChapterNumber() != null ? chapter.getChapterNumber() : 1;
+        String context = novelContextService.buildWritingContext(
+            chapter.getProjectId(), chapterNumber, rangeBefore);
+        return success(java.util.Collections.singletonMap("context", context));
     }
 
     /**

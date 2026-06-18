@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.workflow.mapper.NovelWorkflowEventMapper">
+
+    <resultMap type="com.ruoyi.novel.workflow.domain.NovelWorkflowEvent" id="NovelWorkflowEventResult">
+        <result property="eventId" column="event_id"/>
+        <result property="runId" column="run_id"/>
+        <result property="stepId" column="step_id"/>
+        <result property="eventType" column="event_type"/>
+        <result property="payloadJson" column="payload_json"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectEventsByRunIdAfterId" resultMap="NovelWorkflowEventResult">
+        select event_id, run_id, step_id, event_type, payload_json, create_time
+        from novel_workflow_event
+        where run_id = #{runId}
+        <if test="afterEventId != null">and event_id &gt; #{afterEventId}</if>
+        order by event_id asc
+    </select>
+
+    <insert id="insertNovelWorkflowEvent" useGeneratedKeys="true" keyProperty="eventId">
+        insert into novel_workflow_event (run_id, step_id, event_type, payload_json, create_time)
+        values (#{runId}, #{stepId}, #{eventType}, #{payloadJson}, sysdate())
+    </insert>
+</mapper>

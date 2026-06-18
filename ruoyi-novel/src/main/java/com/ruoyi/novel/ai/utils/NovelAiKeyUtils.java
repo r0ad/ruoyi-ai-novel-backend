@@ -7,7 +7,7 @@ import javax.crypto.spec.SecretKeySpec;
 import com.ruoyi.common.utils.StringUtils;
 
 /**
- * AI API Key º”Ω‚√‹”ÎÕ—√Ù
+ * AI API Key Âä†Ëß£ÂØÜ‰∏éËÑ±Êïè
  */
 public final class NovelAiKeyUtils
 {
@@ -34,7 +34,7 @@ public final class NovelAiKeyUtils
         }
         catch (Exception ex)
         {
-            throw new IllegalStateException("API Key º”√‹ ß∞‹", ex);
+            throw new IllegalStateException("API Key Âä†ÂØÜÂ§±Ë¥•", ex);
         }
     }
 
@@ -53,7 +53,7 @@ public final class NovelAiKeyUtils
         }
         catch (Exception ex)
         {
-            throw new IllegalStateException("API Key Ω‚√‹ ß∞‹", ex);
+            throw new IllegalStateException("API Key Ëß£ÂØÜÂ§±Ë¥•", ex);
         }
     }
 
