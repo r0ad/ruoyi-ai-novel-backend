@@ -58,17 +58,17 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
     {
         if (request.getProjectId() == null)
         {
-            throw new ServiceException("???ID???????");
+            throw new ServiceException("项目ID不能为空");
         }
         NovelProject project = novelProjectService.selectNovelProjectByProjectId(request.getProjectId());
         if (project == null)
         {
-            throw new ServiceException("?????????");
+            throw new ServiceException("项目不存在");
         }
         NovelWorkflowRun existing = novelWorkflowRunMapper.selectActiveRunByProjectId(request.getProjectId());
         if (existing != null)
         {
-            throw new ServiceException("???????????????????????????????????");
+            throw new ServiceException("该项目已有进行中的工作流，请先完成或暂停");
         }
         NovelWorkflowRun run = new NovelWorkflowRun();
         run.setProjectId(request.getProjectId());
@@ -93,7 +93,7 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         NovelWorkflowRun run = novelWorkflowRunMapper.selectNovelWorkflowRunByRunId(runId);
         if (run == null)
         {
-            throw new ServiceException("????????????????");
+            throw new ServiceException("工作流运行不存在");
         }
         NovelWorkflowRunDetail detail = new NovelWorkflowRunDetail();
         detail.setRun(run);
@@ -127,7 +127,7 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         NovelWorkflowStepCode current = NovelWorkflowStepCode.fromCode(run.getCurrentStep());
         if (current == null)
         {
-            throw new ServiceException("???????????");
+            throw new ServiceException("当前步骤无效");
         }
         NovelWorkflowStep step = novelWorkflowStepMapper.selectLatestStepByRunIdAndCode(runId, current.getCode());
         if (step != null)
@@ -167,10 +167,12 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         NovelWorkflowRun run = novelWorkflowRunMapper.selectNovelWorkflowRunByRunId(runId);
         if (run == null)
         {
-            throw new ServiceException("????????????");
+            throw new ServiceException("工作流不存在");
         }
         run.setStatus(NovelWorkflowRunStatus.PAUSED.getCode());
         novelWorkflowRunMapper.updateNovelWorkflowRun(run);
+        workflowEventPublisher.publish(runId, null, NovelWorkflowEventType.RUN_STATUS.getCode(),
+            java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.PAUSED.getCode()));
     }
 
     @Override
@@ -179,12 +181,14 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         NovelWorkflowRun run = novelWorkflowRunMapper.selectNovelWorkflowRunByRunId(runId);
         if (run == null)
         {
-            throw new ServiceException("????????????");
+            throw new ServiceException("工作流不存在");
         }
         if (NovelWorkflowRunStatus.PAUSED.getCode().equals(run.getStatus()))
         {
             run.setStatus(NovelWorkflowRunStatus.WAITING_CONFIRM.getCode());
             novelWorkflowRunMapper.updateNovelWorkflowRun(run);
+            workflowEventPublisher.publish(runId, null, NovelWorkflowEventType.RUN_STATUS.getCode(),
+                java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.WAITING_CONFIRM.getCode()));
         }
     }
 
@@ -194,12 +198,12 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         NovelWorkflowRun run = novelWorkflowRunMapper.selectNovelWorkflowRunByRunId(runId);
         if (run == null)
         {
-            throw new ServiceException("????????????");
+            throw new ServiceException("工作流不存在");
         }
         NovelWorkflowStepCode stepCode = NovelWorkflowStepCode.fromCode(run.getCurrentStep());
         if (stepCode == null)
         {
-            throw new ServiceException("???????????");
+            throw new ServiceException("当前步骤无效");
         }
         run.setStatus(NovelWorkflowRunStatus.RUNNING.getCode());
         novelWorkflowRunMapper.updateNovelWorkflowRun(run);

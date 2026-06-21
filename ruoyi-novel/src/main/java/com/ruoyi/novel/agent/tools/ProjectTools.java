@@ -52,7 +52,8 @@ public class ProjectTools
         {
             project.setStyleGuide(styleGuide);
         }
-        project.setUpdateBy(SecurityUtils.getUsername());
+        String operator = NovelToolContext.getOperator();
+        project.setUpdateBy(StringUtils.isNotEmpty(operator) ? operator : SecurityUtils.getUsername());
         novelProjectService.updateNovelProject(project);
         publishTool("updateProject", project.getTitle());
         return "已更新项目：" + project.getTitle();

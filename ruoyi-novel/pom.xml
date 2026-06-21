@@ -29,6 +29,12 @@
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
+        <!-- AOP（Tool 上下文代理传播） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
+
         <!-- Spring AI OpenAI / Anthropic（运行时由 DB 动态配置） -->
         <dependency>
             <groupId>org.springframework.ai</groupId>

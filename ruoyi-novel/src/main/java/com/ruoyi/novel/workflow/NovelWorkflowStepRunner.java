@@ -86,7 +86,8 @@ public class NovelWorkflowStepRunner
         }
         workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.STEP_STARTED.getCode(),
             java.util.Collections.singletonMap("stepCode", stepCode.getCode()));
-        NovelToolContext.set(runId, run.getProjectId(), stepId, true);
+        NovelToolContext.set(runId, run.getProjectId(), stepId, true, run.getCreateBy());
+        NovelToolContext.Context toolContext = NovelToolContext.get();
         try
         {
             NovelAiSession session = novelAiSessionService.createSession(
@@ -95,7 +96,7 @@ public class NovelWorkflowStepRunner
             step.setAgentSessionId(session.getSessionId());
             novelWorkflowStepMapper.updateNovelWorkflowStep(step);
 
-            ChatClient client = novelAgentFactory.createForStep(stepCode);
+            ChatClient client = novelAgentFactory.createForStep(stepCode, toolContext);
             String system = novelPromptTemplateService.buildSystemPrompt(run, stepCode);
             String user = buildStepUserPrompt(run, stepCode);
             novelAiSessionService.appendMessage(session.getSessionId(), "user", user);
@@ -115,8 +116,11 @@ public class NovelWorkflowStepRunner
             run.setStatus(NovelWorkflowRunStatus.WAITING_CONFIRM.getCode());
             novelWorkflowRunMapper.updateNovelWorkflowRun(run);
 
+            java.util.Map<String, Object> completedPayload = new java.util.HashMap<String, Object>();
+            completedPayload.put("stepCode", stepCode.getCode());
+            completedPayload.put("output", response);
             workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.STEP_COMPLETED.getCode(),
-                java.util.Collections.singletonMap("output", response));
+                completedPayload);
             workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.RUN_STATUS.getCode(),
                 java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.WAITING_CONFIRM.getCode()));
         }

@@ -44,7 +44,15 @@ public class NovelAgentFactory
     @Autowired
     private NovelAgentUtilsBridge novelAgentUtilsBridge;
 
+    @Autowired
+    private NovelToolContextPropagator novelToolContextPropagator;
+
     public ChatClient createForStep(NovelWorkflowStepCode stepCode)
+    {
+        return createForStep(stepCode, null);
+    }
+
+    public ChatClient createForStep(NovelWorkflowStepCode stepCode, NovelToolContext.Context toolContext)
     {
         if (!novelAiModelFactory.isReady())
         {
@@ -53,36 +61,59 @@ public class NovelAgentFactory
         switch (stepCode)
         {
             case INIT_PROJECT:
-                return buildWithExtras(projectTools);
+                return buildWithExtras(toolContext, projectTools);
             case WORLD_BUILDING:
             case PLOT_OUTLINE:
-                return buildWithExtras(projectTools, settingTools);
+                return buildWithExtras(toolContext, projectTools, settingTools);
             case CHARACTER_DESIGN:
-                return buildWithExtras(projectTools, settingTools, metaTools);
+                return buildWithExtras(toolContext, projectTools, settingTools, metaTools);
             case CHAPTER_PLANNING:
-                return buildWithExtras(projectTools, chapterTools, settingTools);
+                return buildWithExtras(toolContext, projectTools, chapterTools, settingTools);
             case WRITE_CHAPTER:
-                return buildWithExtras(
+                return buildWithExtras(toolContext,
                     projectTools, settingTools, chapterTools, contextTools, metaTools, reviewTools);
             case REVIEW_CHAPTER:
             case FINAL_REVIEW:
-                return buildWithExtras(
+                return buildWithExtras(toolContext,
                     projectTools, chapterTools, metaTools, contextTools, reviewTools);
             default:
-                return buildWithExtras(projectTools, settingTools);
+                return buildWithExtras(toolContext, projectTools, settingTools);
         }
+    }
+
+    private ChatClient buildWithExtras(NovelToolContext.Context toolContext, Object... domainTools)
+    {
+        Object[] tools = domainTools;
+        if (toolContext != null)
+        {
+            tools = new Object[domainTools.length];
+            for (int i = 0; i < domainTools.length; i++)
+            {
+                tools[i] = novelToolContextPropagator.wrapToolBean(domainTools[i], toolContext);
+            }
+        }
+        ToolCallback[] extras = novelAgentUtilsBridge.getExtraToolCallbacks();
+        if (extras.length == 0)
+        {
+            return novelAiModelFactory.buildAgentClient(tools);
+        }
+        ToolCallback[] wrappedExtras = extras;
+        if (toolContext != null)
+        {
+            wrappedExtras = new ToolCallback[extras.length];
+            for (int i = 0; i < extras.length; i++)
+            {
+                wrappedExtras[i] = novelToolContextPropagator.wrapToolCallback(extras[i], toolContext);
+            }
+        }
+        Object[] all = new Object[tools.length + wrappedExtras.length];
+        System.arraycopy(tools, 0, all, 0, tools.length);
+        System.arraycopy(wrappedExtras, 0, all, tools.length, wrappedExtras.length);
+        return novelAiModelFactory.buildAgentClient(all);
     }
 
     private ChatClient buildWithExtras(Object... domainTools)
     {
-        ToolCallback[] extras = novelAgentUtilsBridge.getExtraToolCallbacks();
-        if (extras.length == 0)
-        {
-            return novelAiModelFactory.buildAgentClient(domainTools);
-        }
-        Object[] all = new Object[domainTools.length + extras.length];
-        System.arraycopy(domainTools, 0, all, 0, domainTools.length);
-        System.arraycopy(extras, 0, all, domainTools.length, extras.length);
-        return novelAiModelFactory.buildAgentClient(all);
+        return buildWithExtras(null, domainTools);
     }
 }

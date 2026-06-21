@@ -16,7 +16,7 @@ import com.ruoyi.novel.workflow.domain.NovelWorkflowEvent;
 import com.ruoyi.novel.workflow.mapper.NovelWorkflowEventMapper;
 
 /**
- * ?????? SSE ???????
+ * 工作流 SSE 事件发布
  */
 @Component
 public class WorkflowEventPublisher

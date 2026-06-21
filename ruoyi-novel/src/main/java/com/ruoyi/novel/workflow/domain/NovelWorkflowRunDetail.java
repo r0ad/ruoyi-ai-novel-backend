@@ -3,7 +3,7 @@ package com.ruoyi.novel.workflow.domain;
 import java.util.List;
 
 /**
- * ?????????????? DTO
+ * 工作流运行详情 DTO
  */
 public class NovelWorkflowRunDetail
 {
