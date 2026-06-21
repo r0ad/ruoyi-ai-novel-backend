@@ -20,9 +20,12 @@ import com.ruoyi.novel.ai.context.ProjectContextBuilder;
 import com.ruoyi.novel.ai.domain.dto.ExtractConflictItem;
 import com.ruoyi.novel.ai.domain.dto.ExtractEntityItem;
 import com.ruoyi.novel.ai.domain.dto.ExtractRelationItem;
+import com.ruoyi.novel.ai.apply.FixPlanGenerator;
 import com.ruoyi.novel.ai.domain.dto.ExtractResult;
 import com.ruoyi.novel.ai.domain.dto.ReviewIssue;
 import com.ruoyi.novel.ai.domain.dto.ReviewResult;
+import com.ruoyi.novel.ai.domain.dto.SettingDraftResult;
+import com.ruoyi.novel.ai.domain.dto.SyncSettingMetaResult;
 import com.ruoyi.novel.domain.NovelChapter;
 import com.ruoyi.novel.domain.NovelMetaEntity;
 import com.ruoyi.novel.service.INovelChapterService;
@@ -43,13 +46,18 @@ public class NovelAiCapabilityServiceImpl implements INovelAiCapabilityService
     @Autowired
     private INovelMetaService novelMetaService;
 
+    @Autowired
+    private FixPlanGenerator fixPlanGenerator;
+
     @Override
     public ReviewResult reviewChapter(ContextOptions options)
     {
         validateChapter(options);
         ProjectAiContext ctx = projectContextBuilder.buildReviewChapterContext(options);
         String raw = callAi(ctx.getSystemPrompt(), ctx.getUserPrompt());
-        return parseReviewResult(raw, "review_chapter", options.getChapterId());
+        ReviewResult result = parseReviewResult(raw, "review_chapter", options.getChapterId());
+        fixPlanGenerator.enrichReviewResult(result);
+        return result;
     }
 
     @Override
@@ -61,7 +69,9 @@ public class NovelAiCapabilityServiceImpl implements INovelAiCapabilityService
         }
         ProjectAiContext ctx = projectContextBuilder.buildReviewProjectContext(options);
         String raw = callAi(ctx.getSystemPrompt(), ctx.getUserPrompt());
-        return parseReviewResult(raw, "review_project", null);
+        ReviewResult result = parseReviewResult(raw, "review_project", null);
+        fixPlanGenerator.enrichReviewResult(result);
+        return result;
     }
 
     @Override
@@ -73,6 +83,47 @@ public class NovelAiCapabilityServiceImpl implements INovelAiCapabilityService
         ExtractResult result = parseExtractResult(raw, options.getChapterId());
         markNewEntities(result, options.getProjectId());
         return result;
+    }
+
+    @Override
+    public SettingDraftResult extractSettingFromChapters(ContextOptions options)
+    {
+        if (options.getProjectId() == null)
+        {
+            throw new ServiceException("项目ID不能为空");
+        }
+        if ((options.getChapterIds() == null || options.getChapterIds().isEmpty())
+            && options.getChapterId() == null)
+        {
+            throw new ServiceException("请指定至少一个章节");
+        }
+        ProjectAiContext ctx = projectContextBuilder.buildExtractSettingContext(options);
+        String raw = callAi(ctx.getSystemPrompt(), ctx.getUserPrompt());
+        return parseSettingDraftResult(raw, "extract_setting", options.getSettingType());
+    }
+
+    @Override
+    public SettingDraftResult generateSetting(ContextOptions options)
+    {
+        if (options.getProjectId() == null)
+        {
+            throw new ServiceException("项目ID不能为空");
+        }
+        ProjectAiContext ctx = projectContextBuilder.buildGenerateSettingContext(options);
+        String raw = callAi(ctx.getSystemPrompt(), ctx.getUserPrompt());
+        return parseSettingDraftResult(raw, "generate_setting", options.getSettingType());
+    }
+
+    @Override
+    public SyncSettingMetaResult syncSettingAndMeta(ContextOptions options)
+    {
+        if (options.getProjectId() == null)
+        {
+            throw new ServiceException("项目ID不能为空");
+        }
+        ProjectAiContext ctx = projectContextBuilder.buildSyncSettingMetaContext(options);
+        String raw = callAi(ctx.getSystemPrompt(), ctx.getUserPrompt());
+        return parseSyncResult(raw);
     }
 
     private void validateChapter(ContextOptions options)
@@ -144,6 +195,60 @@ public class NovelAiCapabilityServiceImpl implements INovelAiCapabilityService
             result.setTarget(target);
         }
         assignIssueIds(result.getIssues());
+        return result;
+    }
+
+    private SettingDraftResult parseSettingDraftResult(String raw, String taskType, String settingType)
+    {
+        SettingDraftResult result = new SettingDraftResult();
+        result.setTaskType(taskType);
+        result.setSettingType(settingType);
+        result.setRawText(raw);
+        JSONObject json = NovelAiJsonParser.parseObject(raw);
+        if (json == null)
+        {
+            result.setContent(raw);
+            return result;
+        }
+        SettingDraftResult parsed = json.toJavaObject(SettingDraftResult.class);
+        if (StringUtils.isNotEmpty(parsed.getTitle()))
+        {
+            result.setTitle(parsed.getTitle());
+        }
+        if (StringUtils.isNotEmpty(parsed.getContent()))
+        {
+            result.setContent(parsed.getContent());
+        }
+        if (StringUtils.isNotEmpty(parsed.getSettingType()))
+        {
+            result.setSettingType(parsed.getSettingType());
+        }
+        if (parsed.getTarget() != null)
+        {
+            result.setTarget(parsed.getTarget());
+        }
+        return result;
+    }
+
+    private SyncSettingMetaResult parseSyncResult(String raw)
+    {
+        SyncSettingMetaResult result = new SyncSettingMetaResult();
+        result.setTaskType("sync_setting_meta");
+        result.setRawText(raw);
+        JSONObject json = NovelAiJsonParser.parseObject(raw);
+        if (json == null)
+        {
+            return result;
+        }
+        SyncSettingMetaResult parsed = json.toJavaObject(SyncSettingMetaResult.class);
+        if (parsed.getSyncActions() != null)
+        {
+            result.setSyncActions(parsed.getSyncActions());
+        }
+        if (parsed.getTarget() != null)
+        {
+            result.setTarget(parsed.getTarget());
+        }
         return result;
     }
 

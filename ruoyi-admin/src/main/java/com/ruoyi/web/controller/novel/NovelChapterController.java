@@ -125,7 +125,8 @@ public class NovelChapterController extends BaseController
     {
         novelChapter.setCreateBy(getUsername());
         novelChapter.setUpdateBy(getUsername());
-        return toAjax(novelChapterService.insertNovelChapter(novelChapter));
+        int rows = novelChapterService.insertNovelChapter(novelChapter);
+        return rows > 0 ? success(novelChapter) : error();
     }
 
     /**

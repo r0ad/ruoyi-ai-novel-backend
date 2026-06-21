@@ -6,6 +6,10 @@ import org.springframework.stereotype.Component;
 import com.alibaba.fastjson2.JSON;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.novel.ai.apply.FixPlanGenerator;
+import com.ruoyi.novel.ai.capability.INovelAiCapabilityService;
+import com.ruoyi.novel.ai.context.ContextOptions;
+import com.ruoyi.novel.ai.domain.dto.ReviewResult;
 import com.ruoyi.novel.domain.NovelChapter;
 import com.ruoyi.novel.service.INovelChapterService;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowContext;
@@ -34,6 +38,14 @@ public class NovelWorkflowEngine
 
     @Autowired
     private INovelChapterService novelChapterService;
+
+    @Autowired
+    private INovelAiCapabilityService novelAiCapabilityService;
+
+    @Autowired
+    private FixPlanGenerator fixPlanGenerator;
+
+    private static final int MAX_REVIEW_FIX_ROUNDS = 3;
 
     public NovelWorkflowStep startStep(NovelWorkflowRun run, NovelWorkflowStepCode stepCode)
     {
@@ -68,6 +80,27 @@ public class NovelWorkflowEngine
         if (current == NovelWorkflowStepCode.REVIEW_CHAPTER)
         {
             NovelWorkflowContext ctx = parseContext(run);
+            refreshChapterIds(ctx, run.getProjectId());
+            Long chapterId = resolveChapterIdAtIndex(ctx, ctx.getCurrentChapterIndex());
+            if (chapterId != null)
+            {
+                ContextOptions options = new ContextOptions();
+                options.setProjectId(run.getProjectId());
+                options.setChapterId(chapterId);
+                ReviewResult review = novelAiCapabilityService.reviewChapter(options);
+                ctx.setLastReviewResultJson(JSON.toJSONString(review));
+                ctx.setReviewPassed(review.isPassed());
+                ctx.setLastReviewChapterId(chapterId);
+                if (!review.isPassed() && fixPlanGenerator.hasCriticalOrMajor(review)
+                    && ctx.getReviewFixRound() < MAX_REVIEW_FIX_ROUNDS)
+                {
+                    ctx.setReviewFixRound(ctx.getReviewFixRound() + 1);
+                    saveContext(run, ctx);
+                    return NovelWorkflowStepCode.REVIEW_CHAPTER;
+                }
+            }
+            ctx.setReviewFixRound(0);
+            ctx.setReviewPassed(true);
             ctx.setCurrentChapterIndex(ctx.getCurrentChapterIndex() + 1);
             saveContext(run, ctx);
             if (ctx.getCurrentChapterIndex() < ctx.getChapterIds().size())
@@ -114,6 +147,15 @@ public class NovelWorkflowEngine
     {
         run.setContextJson(JSON.toJSONString(ctx));
         novelWorkflowRunMapper.updateNovelWorkflowRun(run);
+    }
+
+    public Long resolveChapterIdAtIndex(NovelWorkflowContext ctx, int index)
+    {
+        if (ctx.getChapterIds() == null || index < 0 || index >= ctx.getChapterIds().size())
+        {
+            return null;
+        }
+        return ctx.getChapterIds().get(index);
     }
 
     public void ensureWaitingConfirm(NovelWorkflowRun run)

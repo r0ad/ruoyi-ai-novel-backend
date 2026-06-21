@@ -1,7 +1,9 @@
 package com.ruoyi.novel.ai.task.service.impl;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.alibaba.fastjson2.JSON;
@@ -13,8 +15,6 @@ import com.ruoyi.novel.ai.context.ContextOptions;
 import com.ruoyi.novel.ai.domain.dto.AiTaskApplyRequest;
 import com.ruoyi.novel.ai.domain.dto.AiTaskCreateRequest;
 import com.ruoyi.novel.ai.domain.dto.ApplyResult;
-import com.ruoyi.novel.ai.domain.dto.ExtractResult;
-import com.ruoyi.novel.ai.domain.dto.ReviewResult;
 import com.ruoyi.novel.ai.task.domain.NovelAiTask;
 import com.ruoyi.novel.ai.task.enums.NovelAiTaskStatus;
 import com.ruoyi.novel.ai.task.enums.NovelAiTaskType;
@@ -110,10 +110,39 @@ public class NovelAiTaskServiceImpl implements INovelAiTaskService
         options.setProjectId(request.getProjectId());
         options.setChapterId(request.resolveChapterId());
         options.setIncludeMetaGraph(true);
-        if (request.getOptions() != null && request.getOptions().get("includeMeta") != null)
+        Map<String, Object> opts = request.getOptions();
+        if (opts != null)
         {
-            options.setIncludeMetaGraph(Boolean.TRUE.equals(request.getOptions().get("includeMeta"))
-                || "true".equals(String.valueOf(request.getOptions().get("includeMeta"))));
+            if (opts.get("includeMeta") != null)
+            {
+                options.setIncludeMetaGraph(Boolean.TRUE.equals(opts.get("includeMeta"))
+                    || "true".equals(String.valueOf(opts.get("includeMeta"))));
+            }
+            if (opts.get("userMessage") != null)
+            {
+                options.setUserMessage(String.valueOf(opts.get("userMessage")));
+            }
+            if (opts.get("settingType") != null)
+            {
+                options.setSettingType(String.valueOf(opts.get("settingType")));
+            }
+            else if ("setting".equals(request.getTargetType()) && StringUtils.isNotEmpty(request.getTargetId()))
+            {
+                options.setSettingType(request.getTargetId());
+            }
+            Object chapterIds = opts.get("chapterIds");
+            if (chapterIds instanceof List)
+            {
+                List<Long> ids = new ArrayList<Long>();
+                for (Object item : (List<?>) chapterIds)
+                {
+                    if (item != null)
+                    {
+                        ids.add(Long.valueOf(String.valueOf(item)));
+                    }
+                }
+                options.setChapterIds(ids);
+            }
         }
         return options;
     }
@@ -131,6 +160,18 @@ public class NovelAiTaskServiceImpl implements INovelAiTaskService
         if (NovelAiTaskType.EXTRACT_META.equals(taskType))
         {
             return novelAiCapabilityService.extractMetaPreview(options);
+        }
+        if (NovelAiTaskType.EXTRACT_SETTING.equals(taskType))
+        {
+            return novelAiCapabilityService.extractSettingFromChapters(options);
+        }
+        if (NovelAiTaskType.GENERATE_SETTING.equals(taskType))
+        {
+            return novelAiCapabilityService.generateSetting(options);
+        }
+        if (NovelAiTaskType.SYNC_SETTING_META.equals(taskType))
+        {
+            return novelAiCapabilityService.syncSettingAndMeta(options);
         }
         throw new ServiceException("不支持的任务类型：" + taskType);
     }

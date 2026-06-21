@@ -182,13 +182,29 @@ public class NovelWorkflowStepRunner
     private String buildStepUserPrompt(NovelWorkflowRun run, NovelWorkflowStepCode stepCode)
     {
         String base = novelPromptTemplateService.buildUserPrompt(run, stepCode);
-        if (stepCode == NovelWorkflowStepCode.WRITE_CHAPTER)
+        com.alibaba.fastjson2.JSONObject ctx = JSON.parseObject(run.getContextJson());
+        if (ctx == null)
         {
-            JSONObject ctx = JSON.parseObject(run.getContextJson());
-            if (ctx != null && ctx.containsKey("currentChapterIndex"))
+            return base;
+        }
+        if (stepCode == NovelWorkflowStepCode.WRITE_CHAPTER || stepCode == NovelWorkflowStepCode.REVIEW_CHAPTER)
+        {
+            int idx = ctx.getIntValue("currentChapterIndex");
+            base += "\n当前章节索引：" + idx;
+            com.alibaba.fastjson2.JSONArray ids = ctx.getJSONArray("chapterIds");
+            if (ids != null && idx >= 0 && idx < ids.size())
             {
-                base += "\n当前章节索引：" + ctx.getIntValue("currentChapterIndex");
+                base += "\n【待审查章节ID】" + ids.getLong(idx);
             }
+        }
+        if (stepCode == NovelWorkflowStepCode.REVIEW_CHAPTER && ctx.getIntValue("reviewFixRound") > 0)
+        {
+            base += "\n【修复轮次】" + ctx.getIntValue("reviewFixRound") + "/" + 3;
+            if (StringUtils.isNotEmpty(ctx.getString("lastReviewResultJson")))
+            {
+                base += "\n【上一审查结果】\n" + ctx.getString("lastReviewResultJson");
+            }
+            base += "\n请根据 Critical/Major 问题调用工具修复后再次 reviewChapterConsistency 验证。";
         }
         return base;
     }

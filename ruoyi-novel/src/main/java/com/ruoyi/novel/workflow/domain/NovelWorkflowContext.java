@@ -12,6 +12,9 @@ public class NovelWorkflowContext
     private List<Long> chapterIds = new ArrayList<Long>();
     private int targetChapterCount = 3;
     private Long lastReviewChapterId;
+    private int reviewFixRound;
+    private boolean reviewPassed;
+    private String lastReviewResultJson;
 
     public int getCurrentChapterIndex()
     {
@@ -51,5 +54,35 @@ public class NovelWorkflowContext
     public void setLastReviewChapterId(Long lastReviewChapterId)
     {
         this.lastReviewChapterId = lastReviewChapterId;
+    }
+
+    public int getReviewFixRound()
+    {
+        return reviewFixRound;
+    }
+
+    public void setReviewFixRound(int reviewFixRound)
+    {
+        this.reviewFixRound = reviewFixRound;
+    }
+
+    public boolean isReviewPassed()
+    {
+        return reviewPassed;
+    }
+
+    public void setReviewPassed(boolean reviewPassed)
+    {
+        this.reviewPassed = reviewPassed;
+    }
+
+    public String getLastReviewResultJson()
+    {
+        return lastReviewResultJson;
+    }
+
+    public void setLastReviewResultJson(String lastReviewResultJson)
+    {
+        this.lastReviewResultJson = lastReviewResultJson;
     }
 }

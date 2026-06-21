@@ -74,7 +74,7 @@ public class NovelPromptTemplateService
                 sb.append("请为当前待写章节：先 getWritingContext，再撰写正文并 saveChapter，最后 extractMetaFromChapter。");
                 break;
             case REVIEW_CHAPTER:
-                sb.append("请对最新章节调用 reviewChapterConsistency，输出审查报告。");
+                sb.append("请对【待审查章节ID】调用 reviewChapterConsistency，对 Critical/Major 问题必须调用 saveSetting/saveMetaEntity 修复，修复后再次审查。最多 3 轮。");
                 break;
             case FINAL_REVIEW:
                 sb.append("请调用 reviewFullNovel 进行全书一致性审查，输出最终报告。");
@@ -127,8 +127,9 @@ public class NovelPromptTemplateService
             case PLOT_OUTLINE:
                 return "plot-outline";
             case WRITE_CHAPTER:
-            case REVIEW_CHAPTER:
                 return "write-chapter";
+            case REVIEW_CHAPTER:
+                return "review-chapter";
             default:
                 return null;
         }

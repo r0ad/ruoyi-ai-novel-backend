@@ -15,6 +15,7 @@ import com.ruoyi.novel.ai.domain.dto.ExtractResult;
 import com.ruoyi.novel.ai.domain.dto.ReviewResult;
 import com.ruoyi.novel.ai.service.INovelAiService;
 import com.ruoyi.novel.domain.NovelChapter;
+import com.ruoyi.novel.rag.service.INovelContextService;
 import com.ruoyi.novel.service.INovelChapterService;
 import reactor.core.publisher.Flux;
 
@@ -32,6 +33,9 @@ public class NovelAiServiceImpl implements INovelAiService
 
     @Autowired
     private INovelChapterService novelChapterService;
+
+    @Autowired
+    private INovelContextService novelContextService;
 
     @Override
     public String chat(NovelAiChatRequest request)
@@ -131,13 +135,24 @@ public class NovelAiServiceImpl implements INovelAiService
 
     private String buildContinueUserPrompt(NovelAiChatRequest request)
     {
+        boolean isWrite = "write".equals(request.getSessionType());
         StringBuilder userPrompt = new StringBuilder();
+        if (request.getProjectId() != null && isWrite)
+        {
+            int chapterNum = resolveTargetChapterNumber(request);
+            userPrompt.append("【全书写作上下文】\n")
+                .append(novelContextService.buildWritingContext(request.getProjectId(), chapterNum, 2))
+                .append("\n");
+        }
         if (request.getChapterId() != null)
         {
             NovelChapter chapter = novelChapterService.selectNovelChapterByChapterId(request.getChapterId());
             if (chapter != null)
             {
-                userPrompt.append("【章节标题】").append(chapter.getTitle()).append("\n");
+                if (StringUtils.isNotEmpty(chapter.getTitle()))
+                {
+                    userPrompt.append("【当前章节标题】").append(chapter.getTitle()).append("\n");
+                }
                 if (StringUtils.isNotEmpty(chapter.getSummary()))
                 {
                     userPrompt.append("【章节摘要】").append(chapter.getSummary()).append("\n");
@@ -150,13 +165,40 @@ public class NovelAiServiceImpl implements INovelAiService
         }
         if (StringUtils.isNotEmpty(request.getMessage()))
         {
-            userPrompt.append("【续写要求】").append(request.getMessage()).append("\n");
+            userPrompt.append(isWrite ? "【创作要求】" : "【续写要求】").append(request.getMessage()).append("\n");
+        }
+        else if (isWrite)
+        {
+            userPrompt.append("【创作要求】请根据全书上下文自然开创新章节，撰写完整正文约 1500-3000 字。\n");
         }
         else
         {
             userPrompt.append("【续写要求】请自然延续上文情节，续写约 500-800 字。\n");
         }
-        userPrompt.append("请开始续写：");
+        userPrompt.append(isWrite ? "请开始撰写正文：" : "请开始续写：");
         return userPrompt.toString();
+    }
+
+    private int resolveTargetChapterNumber(NovelAiChatRequest request)
+    {
+        if (request.getChapterId() != null)
+        {
+            NovelChapter chapter = novelChapterService.selectNovelChapterByChapterId(request.getChapterId());
+            if (chapter != null && chapter.getChapterNumber() != null)
+            {
+                return chapter.getChapterNumber();
+            }
+        }
+        NovelChapter query = new NovelChapter();
+        query.setProjectId(request.getProjectId());
+        int max = 0;
+        for (NovelChapter ch : novelChapterService.selectNovelChapterList(query))
+        {
+            if (ch.getChapterNumber() != null && ch.getChapterNumber() > max)
+            {
+                max = ch.getChapterNumber();
+            }
+        }
+        return max + 1;
     }
 }

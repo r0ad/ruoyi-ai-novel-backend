@@ -160,6 +160,99 @@ public class ProjectContextBuilder
         return new ProjectAiContext(system.toString(), user.toString());
     }
 
+    public ProjectAiContext buildExtractSettingContext(ContextOptions options)
+    {
+        Long projectId = options.getProjectId();
+        String settingType = StringUtils.isNotEmpty(options.getSettingType()) ? options.getSettingType() : "characters";
+        StringBuilder system = new StringBuilder(
+            "你是小说设定编辑。仅输出 JSON，不要 Markdown 代码块。");
+        system.append("\n格式：{\"taskType\":\"extract_setting\",\"settingType\":\"")
+            .append(settingType).append("\",\"title\":\"...\",\"content\":\"Markdown 设定正文\"}");
+        appendProjectContext(system, projectId);
+
+        StringBuilder user = new StringBuilder("请从以下章节正文反推并整理「")
+            .append(SETTING_LABELS.getOrDefault(settingType, settingType))
+            .append("」设定草案：\n");
+        appendChaptersContent(user, options);
+        if (StringUtils.isNotEmpty(options.getUserMessage()))
+        {
+            user.append("\n【附加要求】").append(options.getUserMessage());
+        }
+        Map<String, Object> target = new HashMap<String, Object>();
+        target.put("settingType", settingType);
+        return new ProjectAiContext(system.toString(), user.toString());
+    }
+
+    public ProjectAiContext buildGenerateSettingContext(ContextOptions options)
+    {
+        Long projectId = options.getProjectId();
+        String settingType = StringUtils.isNotEmpty(options.getSettingType()) ? options.getSettingType() : "characters";
+        StringBuilder system = new StringBuilder(
+            "你是网络小说策划。仅输出 JSON，不要 Markdown 代码块。");
+        system.append("\n格式：{\"taskType\":\"generate_setting\",\"settingType\":\"")
+            .append(settingType).append("\",\"title\":\"...\",\"content\":\"Markdown 设定正文\"}");
+        appendProjectContext(system, projectId);
+        appendSettingContext(system, projectId, options.getIncludeSettings());
+
+        StringBuilder user = new StringBuilder("请为当前项目生成「")
+            .append(SETTING_LABELS.getOrDefault(settingType, settingType))
+            .append("」设定草案。");
+        if (StringUtils.isNotEmpty(options.getUserMessage()))
+        {
+            user.append("\n【创作要求】").append(options.getUserMessage());
+        }
+        return new ProjectAiContext(system.toString(), user.toString());
+    }
+
+    public ProjectAiContext buildSyncSettingMetaContext(ContextOptions options)
+    {
+        Long projectId = options.getProjectId();
+        StringBuilder system = new StringBuilder(
+            "你是设定与知识图谱对齐专家。仅输出 JSON，不要 Markdown 代码块。");
+        system.append("\n格式：{\"taskType\":\"sync_setting_meta\",\"syncActions\":[")
+            .append("{\"type\":\"update_meta_entity|insert_meta_entity|update_setting\",")
+            .append("\"entityName\":\"...\",\"newName\":\"...\",\"settingType\":\"characters\",")
+            .append("\"hint\":\"...\"}]}");
+        appendProjectContext(system, projectId);
+        appendSettingContext(system, projectId, java.util.Arrays.asList("characters", "world", "outline"));
+
+        StringBuilder user = new StringBuilder("请对比设定与 Meta 图谱，给出需要对齐的 syncActions 列表。\n");
+        if (options.isIncludeMetaGraph())
+        {
+            NovelMetaGraph graph = novelMetaService.selectGraphByProjectId(projectId);
+            if (graph != null)
+            {
+                user.append("【Meta图谱】").append(JSON.toJSONString(graph));
+            }
+        }
+        return new ProjectAiContext(system.toString(), user.toString());
+    }
+
+    private void appendChaptersContent(StringBuilder user, ContextOptions options)
+    {
+        java.util.List<Long> ids = new java.util.ArrayList<Long>();
+        if (options.getChapterIds() != null && !options.getChapterIds().isEmpty())
+        {
+            ids.addAll(options.getChapterIds());
+        }
+        else if (options.getChapterId() != null)
+        {
+            ids.add(options.getChapterId());
+        }
+        for (Long chapterId : ids)
+        {
+            NovelChapter chapter = novelChapterService.selectNovelChapterByChapterId(chapterId);
+            if (chapter != null)
+            {
+                user.append("\n【").append(chapter.getTitle()).append("】\n");
+                if (StringUtils.isNotEmpty(chapter.getContent()))
+                {
+                    user.append(chapter.getContent());
+                }
+            }
+        }
+    }
+
     private void appendProjectContext(StringBuilder sb, Long projectId)
     {
         if (projectId == null)

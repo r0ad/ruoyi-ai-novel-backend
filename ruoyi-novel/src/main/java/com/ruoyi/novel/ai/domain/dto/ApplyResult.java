@@ -5,6 +5,8 @@ public class ApplyResult
     private int entitiesInserted;
     private int entitiesUpdated;
     private int relationsInserted;
+    private int settingsUpdated;
+    private int metaRenamed;
     private String message;
 
     public int getEntitiesInserted() { return entitiesInserted; }
@@ -13,6 +15,10 @@ public class ApplyResult
     public void setEntitiesUpdated(int entitiesUpdated) { this.entitiesUpdated = entitiesUpdated; }
     public int getRelationsInserted() { return relationsInserted; }
     public void setRelationsInserted(int relationsInserted) { this.relationsInserted = relationsInserted; }
+    public int getSettingsUpdated() { return settingsUpdated; }
+    public void setSettingsUpdated(int settingsUpdated) { this.settingsUpdated = settingsUpdated; }
+    public int getMetaRenamed() { return metaRenamed; }
+    public void setMetaRenamed(int metaRenamed) { this.metaRenamed = metaRenamed; }
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
 }
