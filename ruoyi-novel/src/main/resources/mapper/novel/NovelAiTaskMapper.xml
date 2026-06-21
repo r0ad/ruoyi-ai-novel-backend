@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.novel.ai.task.mapper.NovelAiTaskMapper">
+
+    <resultMap type="com.ruoyi.novel.ai.task.domain.NovelAiTask" id="NovelAiTaskResult">
+        <result property="taskId" column="task_id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="taskType" column="task_type"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetId" column="target_id"/>
+        <result property="status" column="status"/>
+        <result property="inputJson" column="input_json"/>
+        <result property="resultJson" column="result_json"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="appliedAt" column="applied_at"/>
+        <result property="appliedBy" column="applied_by"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select task_id, project_id, task_type, target_type, target_id, status,
+               input_json, result_json, error_message, session_id, applied_at, applied_by,
+               create_by, create_time, update_time
+        from novel_ai_task
+    </sql>
+
+    <select id="selectNovelAiTaskByTaskId" resultMap="NovelAiTaskResult">
+        <include refid="selectVo"/> where task_id = #{taskId}
+    </select>
+
+    <select id="selectNovelAiTaskList" resultMap="NovelAiTaskResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="projectId != null">and project_id = #{projectId}</if>
+            <if test="taskType != null and taskType != ''">and task_type = #{taskType}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+        </where>
+        order by task_id desc
+    </select>
+
+    <insert id="insertNovelAiTask" useGeneratedKeys="true" keyProperty="taskId">
+        insert into novel_ai_task (
+            project_id, task_type, target_type, target_id, status,
+            input_json, result_json, error_message, session_id,
+            create_by, create_time
+        ) values (
+            #{projectId}, #{taskType}, #{targetType}, #{targetId}, #{status},
+            #{inputJson}, #{resultJson}, #{errorMessage}, #{sessionId},
+            #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateNovelAiTask">
+        update novel_ai_task
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="resultJson != null">result_json = #{resultJson},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
+            <if test="appliedAt != null">applied_at = #{appliedAt},</if>
+            <if test="appliedBy != null">applied_by = #{appliedBy},</if>
+            update_time = sysdate()
+        </set>
+        where task_id = #{taskId}
+    </update>
+</mapper>

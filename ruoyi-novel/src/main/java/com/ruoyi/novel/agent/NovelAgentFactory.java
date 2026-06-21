@@ -75,7 +75,7 @@ public class NovelAgentFactory
             case REVIEW_CHAPTER:
             case FINAL_REVIEW:
                 return buildWithExtras(toolContext,
-                    projectTools, chapterTools, metaTools, contextTools, reviewTools);
+                    projectTools, settingTools, chapterTools, metaTools, contextTools, reviewTools);
             default:
                 return buildWithExtras(toolContext, projectTools, settingTools);
         }
