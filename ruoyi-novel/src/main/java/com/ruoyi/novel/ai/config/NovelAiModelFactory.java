@@ -58,7 +58,8 @@ public class NovelAiModelFactory
             ChatModel chatModel = buildChatModel(model, novelAiKeyCrypto.decrypt(model.getApiKey()));
             chatClient = ChatClient.builder(chatModel).defaultSystem(DEFAULT_SYSTEM).build();
             activeModel = copyWithoutKey(model);
-            log.info("AI 模型已加载：{} ({}/{})", model.getModelName(), model.getProviderType(), model.getModelCode());
+            log.info("AI 模型已加载：{} ({}/{}) timeoutMs={}", model.getModelName(), model.getProviderType(),
+                model.getModelCode(), NovelAiHttpTimeoutCustomizer.resolveTimeoutMs(model.getTimeoutMs()));
         }
         catch (Exception ex)
         {
@@ -130,15 +131,17 @@ public class NovelAiModelFactory
         }
         double temperature = model.getTemperature() != null ? model.getTemperature().doubleValue() : 0.7D;
         int maxTokens = model.getMaxTokens() != null ? model.getMaxTokens() : 4096;
+        int timeoutMs = NovelAiHttpTimeoutCustomizer.resolveTimeoutMs(model.getTimeoutMs());
         String provider = StringUtils.defaultString(model.getProviderType()).toLowerCase();
         if (NovelAiModel.PROVIDER_ANTHROPIC.equals(provider))
         {
-            return buildAnthropicChatModel(model, plainApiKey, temperature, maxTokens);
+            return buildAnthropicChatModel(model, plainApiKey, temperature, maxTokens, timeoutMs);
         }
-        return buildOpenAiChatModel(model, plainApiKey, temperature, maxTokens);
+        return buildOpenAiChatModel(model, plainApiKey, temperature, maxTokens, timeoutMs);
     }
 
-    private ChatModel buildOpenAiChatModel(NovelAiModel model, String plainApiKey, double temperature, int maxTokens)
+    private ChatModel buildOpenAiChatModel(NovelAiModel model, String plainApiKey, double temperature, int maxTokens,
+        int timeoutMs)
     {
         OpenAiChatOptions options = OpenAiChatOptions.builder()
             .apiKey(plainApiKey)
@@ -147,10 +150,14 @@ public class NovelAiModelFactory
             .temperature(temperature)
             .maxTokens(maxTokens)
             .build();
-        return OpenAiChatModel.builder().options(options).build();
+        return OpenAiChatModel.builder()
+            .options(options)
+            .httpClientBuilderCustomizer(NovelAiHttpTimeoutCustomizer.openAi(timeoutMs))
+            .build();
     }
 
-    private ChatModel buildAnthropicChatModel(NovelAiModel model, String plainApiKey, double temperature, int maxTokens)
+    private ChatModel buildAnthropicChatModel(NovelAiModel model, String plainApiKey, double temperature, int maxTokens,
+        int timeoutMs)
     {
         AnthropicChatOptions.Builder optionsBuilder = AnthropicChatOptions.builder()
             .apiKey(plainApiKey)
@@ -161,7 +168,10 @@ public class NovelAiModelFactory
         {
             optionsBuilder.baseUrl(normalizeBaseUrl(model.getBaseUrl()));
         }
-        return AnthropicChatModel.builder().options(optionsBuilder.build()).build();
+        AnthropicChatModel.Builder modelBuilder = AnthropicChatModel.builder()
+            .options(optionsBuilder.build())
+            .httpClientBuilderCustomizer(NovelAiHttpTimeoutCustomizer.anthropic(timeoutMs));
+        return modelBuilder.build();
     }
 
     private String normalizeBaseUrl(String baseUrl)

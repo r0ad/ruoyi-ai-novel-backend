@@ -154,6 +154,12 @@ springdoc:
       paths-to-match: '/**'
       packages-to-scan: com.ruoyi.web.controller.tool
 
+# 小说 AI 调试
+novel:
+  ai:
+    debug:
+      log-prompts: true
+
 # 防盗链配置
 referer:
   # 防盗链开关

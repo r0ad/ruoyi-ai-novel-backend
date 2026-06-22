@@ -15,6 +15,8 @@ import com.ruoyi.novel.ai.context.ContextOptions;
 import com.ruoyi.novel.ai.domain.dto.AiTaskApplyRequest;
 import com.ruoyi.novel.ai.domain.dto.AiTaskCreateRequest;
 import com.ruoyi.novel.ai.domain.dto.ApplyResult;
+import com.ruoyi.novel.ai.invocation.INovelAiInvocationService;
+import com.ruoyi.novel.ai.invocation.domain.AiInvocationRecord;
 import com.ruoyi.novel.ai.task.domain.NovelAiTask;
 import com.ruoyi.novel.ai.task.enums.NovelAiTaskStatus;
 import com.ruoyi.novel.ai.task.enums.NovelAiTaskType;
@@ -32,6 +34,9 @@ public class NovelAiTaskServiceImpl implements INovelAiTaskService
 
     @Autowired
     private INovelAiApplyService novelAiApplyService;
+
+    @Autowired
+    private INovelAiInvocationService novelAiInvocationService;
 
     @Override
     public NovelAiTask createAndRun(AiTaskCreateRequest request, String operator)
@@ -59,8 +64,22 @@ public class NovelAiTaskServiceImpl implements INovelAiTaskService
             task.setStatus(NovelAiTaskStatus.FAILED);
             task.setErrorMessage(ex.getMessage());
         }
-        novelAiTaskMapper.updateNovelAiTask(task);
+        finally
+        {
+            attachPromptJson(task);
+            novelAiInvocationService.clearLastInvocation();
+            novelAiTaskMapper.updateNovelAiTask(task);
+        }
         return task;
+    }
+
+    private void attachPromptJson(NovelAiTask task)
+    {
+        AiInvocationRecord invocation = novelAiInvocationService.getLastInvocation();
+        if (invocation != null)
+        {
+            task.setPromptJson(JSON.toJSONString(invocation));
+        }
     }
 
     @Override

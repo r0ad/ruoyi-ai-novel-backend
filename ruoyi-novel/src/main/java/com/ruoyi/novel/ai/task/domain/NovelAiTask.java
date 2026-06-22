@@ -13,6 +13,7 @@ public class NovelAiTask
     private String status;
     private String inputJson;
     private String resultJson;
+    private String promptJson;
     private String errorMessage;
     private Long sessionId;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -40,6 +41,8 @@ public class NovelAiTask
     public void setInputJson(String inputJson) { this.inputJson = inputJson; }
     public String getResultJson() { return resultJson; }
     public void setResultJson(String resultJson) { this.resultJson = resultJson; }
+    public String getPromptJson() { return promptJson; }
+    public void setPromptJson(String promptJson) { this.promptJson = promptJson; }
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public Long getSessionId() { return sessionId; }

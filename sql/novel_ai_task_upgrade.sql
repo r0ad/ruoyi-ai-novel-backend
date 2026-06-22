@@ -9,6 +9,7 @@ CREATE TABLE novel_ai_task (
   status          VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT 'pending/running/completed/applied/failed',
   input_json      TEXT         COMMENT '请求参数',
   result_json     LONGTEXT     COMMENT '结构化结果',
+  prompt_json     LONGTEXT     COMMENT 'AI 调用记录（system/user/response 等）',
   error_message   VARCHAR(500) DEFAULT NULL COMMENT '失败原因',
   session_id      BIGINT       DEFAULT NULL COMMENT '关联AI会话',
   applied_at      DATETIME     DEFAULT NULL COMMENT '应用时间',

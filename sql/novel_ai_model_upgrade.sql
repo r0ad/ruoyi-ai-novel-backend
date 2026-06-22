@@ -9,7 +9,7 @@ create table novel_ai_model (
   model_code      varchar(100)    not null                   comment '模型标识',
   temperature     decimal(3,2)    default 0.70               comment '默认温度',
   max_tokens      int(11)         default 4096               comment '默认最大Token',
-  timeout_ms      int(11)         default 60000              comment '请求超时毫秒',
+  timeout_ms      int(11)         default 300000             comment '请求超时毫秒',
   is_active       char(1)         default '0'                comment '是否激活（0否 1是）',
   is_default      char(1)         default '0'                comment '是否默认',
   sort_order      int(11)         default 0                  comment '排序',

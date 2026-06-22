@@ -3,7 +3,6 @@ package com.ruoyi.novel.ai.capability.impl;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.alibaba.fastjson2.JSON;
@@ -13,7 +12,7 @@ import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.novel.ai.capability.INovelAiCapabilityService;
 import com.ruoyi.novel.ai.capability.NovelAiJsonParser;
-import com.ruoyi.novel.ai.config.NovelAiModelFactory;
+import com.ruoyi.novel.ai.invocation.INovelAiInvocationService;
 import com.ruoyi.novel.ai.context.ContextOptions;
 import com.ruoyi.novel.ai.context.ProjectAiContext;
 import com.ruoyi.novel.ai.context.ProjectContextBuilder;
@@ -35,7 +34,7 @@ import com.ruoyi.novel.service.INovelMetaService;
 public class NovelAiCapabilityServiceImpl implements INovelAiCapabilityService
 {
     @Autowired
-    private NovelAiModelFactory novelAiModelFactory;
+    private INovelAiInvocationService novelAiInvocationService;
 
     @Autowired
     private ProjectContextBuilder projectContextBuilder;
@@ -141,17 +140,7 @@ public class NovelAiCapabilityServiceImpl implements INovelAiCapabilityService
 
     private String callAi(String system, String user)
     {
-        ChatClient client = novelAiModelFactory.getChatClient();
-        if (client == null)
-        {
-            throw new ServiceException("未配置激活的 AI 模型，请先在「AI模型管理」中添加并激活模型");
-        }
-        String content = client.prompt().system(system).user(user).call().content();
-        if (StringUtils.isEmpty(content))
-        {
-            throw new ServiceException("AI 返回内容为空");
-        }
-        return content;
+        return novelAiInvocationService.invoke(INovelAiInvocationService.SOURCE_CAPABILITY, system, user);
     }
 
     private ReviewResult parseReviewResult(String raw, String taskType, Long chapterId)

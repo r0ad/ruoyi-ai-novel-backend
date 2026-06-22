@@ -1,5 +1,7 @@
 package com.ruoyi.novel.ai.service.impl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,10 @@ import reactor.core.publisher.Flux;
 @Service
 public class NovelAiServiceImpl implements INovelAiService
 {
+    private static final Logger log = LoggerFactory.getLogger(NovelAiServiceImpl.class);
+
+    private static final String STREAM_ERROR_PREFIX = "__AI_ERROR__:";
+
     @Autowired
     private NovelAiModelFactory novelAiModelFactory;
 
@@ -85,16 +91,51 @@ public class NovelAiServiceImpl implements INovelAiService
     @Override
     public Flux<String> continueStream(NovelAiChatRequest request)
     {
-        ensureChatClient();
         if (request == null)
         {
-            return Flux.error(new ServiceException("请求不能为空"));
+            return Flux.just(streamError("请求不能为空"));
+        }
+        if (resolveChatClient() == null)
+        {
+            return Flux.just(streamError("未配置激活的 AI 模型，请先在「AI模型管理」中添加并激活模型"));
         }
         return resolveChatClient().prompt()
             .system(buildContinueSystemPrompt(request))
             .user(buildContinueUserPrompt(request))
             .stream()
-            .content();
+            .content()
+            .onErrorResume(this::handleStreamError);
+    }
+
+    private Flux<String> handleStreamError(Throwable ex)
+    {
+        log.error("Continue stream failed", ex);
+        return Flux.just(streamError(formatStreamError(ex)));
+    }
+
+    private String streamError(String message)
+    {
+        return STREAM_ERROR_PREFIX + message;
+    }
+
+    private String formatStreamError(Throwable ex)
+    {
+        Throwable root = ex;
+        while (root.getCause() != null && root.getCause() != root)
+        {
+            root = root.getCause();
+        }
+        String rootMessage = root.getMessage();
+        if (root instanceof java.io.InterruptedIOException
+            || (rootMessage != null && rootMessage.toLowerCase().contains("timeout")))
+        {
+            return "AI 响应超时，请在「AI模型管理」将超时设为 300000ms（5 分钟）或更大后重新激活模型";
+        }
+        if (StringUtils.isNotEmpty(ex.getMessage()))
+        {
+            return "续写失败：" + ex.getMessage();
+        }
+        return "续写失败，请稍后重试";
     }
 
     private void ensureChatClient()
@@ -169,7 +210,7 @@ public class NovelAiServiceImpl implements INovelAiService
         }
         else if (isWrite)
         {
-            userPrompt.append("【创作要求】请根据全书上下文自然开创新章节，撰写完整正文约 1500-3000 字。\n");
+            userPrompt.append("【创作要求】请根据全书上下文自然开创新章节，撰写完整正文约 2000-3000 字。\n");
         }
         else
         {
