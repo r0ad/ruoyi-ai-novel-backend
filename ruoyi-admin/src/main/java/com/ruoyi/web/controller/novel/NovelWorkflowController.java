@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -106,8 +107,29 @@ public class NovelWorkflowController extends BaseController
 
     @PreAuthorize("@ss.hasPermi('novel:workflow:view')")
     @GetMapping(value = "/run/{runId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter events(@PathVariable Long runId)
+    public SseEmitter events(@PathVariable Long runId,
+        @RequestHeader(value = "Last-Event-ID", required = false) String lastEventIdHeader,
+        @RequestParam(value = "lastEventId", required = false) Long lastEventIdParam)
     {
-        return workflowEventPublisher.subscribe(runId);
+        return workflowEventPublisher.subscribe(runId, resolveLastEventId(lastEventIdHeader, lastEventIdParam));
+    }
+
+    private Long resolveLastEventId(String header, Long param)
+    {
+        if (param != null)
+        {
+            return param;
+        }
+        if (header != null && !header.isBlank())
+        {
+            try
+            {
+                return Long.parseLong(header.trim());
+            }
+            catch (NumberFormatException ignored)
+            {
+            }
+        }
+        return null;
     }
 }

@@ -5,6 +5,11 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,31 +29,58 @@ public class WorkflowEventPublisher
 
     private static final long SSE_TIMEOUT = 30L * 60L * 1000L;
 
+    private static final long HEARTBEAT_INTERVAL_SECONDS = 15L;
+
     private final Map<Long, List<SseEmitter>> emitters = new ConcurrentHashMap<Long, List<SseEmitter>>();
+
+    private ScheduledExecutorService heartbeatExecutor;
 
     @Autowired
     private NovelWorkflowEventMapper novelWorkflowEventMapper;
 
-    public SseEmitter subscribe(Long runId)
+    @PostConstruct
+    public void init()
+    {
+        heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "workflow-sse-heartbeat");
+            t.setDaemon(true);
+            return t;
+        });
+        heartbeatExecutor.scheduleAtFixedRate(this::sendHeartbeats,
+            HEARTBEAT_INTERVAL_SECONDS, HEARTBEAT_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    @PreDestroy
+    public void destroy()
+    {
+        if (heartbeatExecutor != null)
+        {
+            heartbeatExecutor.shutdownNow();
+        }
+    }
+
+    public SseEmitter subscribe(Long runId, Long lastEventId)
     {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
         emitters.computeIfAbsent(runId, k -> new CopyOnWriteArrayList<SseEmitter>()).add(emitter);
         emitter.onCompletion(() -> removeEmitter(runId, emitter));
         emitter.onTimeout(() -> removeEmitter(runId, emitter));
         emitter.onError(e -> removeEmitter(runId, emitter));
-        CompletableFuture.runAsync(() -> sendInitialEvents(runId, emitter));
+        CompletableFuture.runAsync(() -> sendInitialEvents(runId, emitter, lastEventId));
         return emitter;
     }
 
-    private void sendInitialEvents(Long runId, SseEmitter emitter)
+    private void sendInitialEvents(Long runId, SseEmitter emitter, Long lastEventId)
     {
         try
         {
             emitter.send(SseEmitter.event().comment("connected"));
-            List<NovelWorkflowEvent> history = novelWorkflowEventMapper.selectEventsByRunIdAfterId(runId, null);
+            // 仅重放 lastEventId 之后的结构化事件（token 为瞬时事件，不参与重放）
+            List<NovelWorkflowEvent> history =
+                novelWorkflowEventMapper.selectReplayEventsByRunIdAfterId(runId, lastEventId);
             for (NovelWorkflowEvent event : history)
             {
-                emitter.send(SseEmitter.event().name("workflow").data(JSON.toJSONString(event)));
+                emitter.send(toSseEvent(event));
             }
         }
         catch (Exception ex)
@@ -66,6 +98,9 @@ public class WorkflowEventPublisher
         }
     }
 
+    /**
+     * 持久化并广播结构化事件
+     */
     public NovelWorkflowEvent publish(Long runId, Long stepId, String eventType, Object payload)
     {
         NovelWorkflowEvent event = new NovelWorkflowEvent();
@@ -78,6 +113,19 @@ public class WorkflowEventPublisher
         return event;
     }
 
+    /**
+     * 仅广播、不落库的瞬时事件（如流式 token），避免高频写库与重连全量重放
+     */
+    public void publishTransient(Long runId, Long stepId, String eventType, Object payload)
+    {
+        NovelWorkflowEvent event = new NovelWorkflowEvent();
+        event.setRunId(runId);
+        event.setStepId(stepId);
+        event.setEventType(eventType);
+        event.setPayloadJson(payload == null ? null : JSON.toJSONString(payload));
+        broadcast(runId, event);
+    }
+
     private void broadcast(Long runId, NovelWorkflowEvent event)
     {
         List<SseEmitter> list = emitters.get(runId);
@@ -85,18 +133,55 @@ public class WorkflowEventPublisher
         {
             return;
         }
-        String payload = JSON.toJSONString(event);
+        SseEmitter.SseEventBuilder builder = toSseEvent(event);
         for (SseEmitter emitter : list)
         {
-            safeSend(runId, emitter, payload);
+            safeSend(runId, emitter, builder);
         }
     }
 
-    private void safeSend(Long runId, SseEmitter emitter, String payload)
+    private SseEmitter.SseEventBuilder toSseEvent(NovelWorkflowEvent event)
+    {
+        SseEmitter.SseEventBuilder builder = SseEmitter.event()
+            .name("workflow")
+            .data(JSON.toJSONString(event));
+        // 仅持久化事件带 id，供前端记录 Last-Event-ID 做增量重连
+        if (event.getEventId() != null)
+        {
+            builder.id(String.valueOf(event.getEventId()));
+        }
+        return builder;
+    }
+
+    private void sendHeartbeats()
+    {
+        if (emitters.isEmpty())
+        {
+            return;
+        }
+        for (Map.Entry<Long, List<SseEmitter>> entry : emitters.entrySet())
+        {
+            Long runId = entry.getKey();
+            for (SseEmitter emitter : entry.getValue())
+            {
+                try
+                {
+                    emitter.send(SseEmitter.event().comment("ping"));
+                }
+                catch (Exception ex)
+                {
+                    removeEmitter(runId, emitter);
+                    completeQuietly(emitter);
+                }
+            }
+        }
+    }
+
+    private void safeSend(Long runId, SseEmitter emitter, SseEmitter.SseEventBuilder builder)
     {
         try
         {
-            emitter.send(SseEmitter.event().name("workflow").data(payload));
+            emitter.send(builder);
         }
         catch (Exception ex)
         {

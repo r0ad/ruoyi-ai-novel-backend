@@ -127,7 +127,7 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
             detail.setCurrentStepRecord(
                 novelWorkflowStepMapper.selectLatestStepByRunIdAndCode(runId, run.getCurrentStep()));
         }
-        detail.setEvents(novelWorkflowEventMapper.selectEventsByRunIdAfterId(runId, null));
+        detail.setEvents(novelWorkflowEventMapper.selectReplayEventsByRunIdAfterId(runId, null));
         enrichStepContext(detail, run, messageStepCode);
         return detail;
     }

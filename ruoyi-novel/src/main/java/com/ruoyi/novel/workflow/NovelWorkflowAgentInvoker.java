@@ -167,7 +167,7 @@ public class NovelWorkflowAgentInvoker
         {
             responseBuilder.append(chunk);
         }
-        workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.TOKEN.getCode(),
+        workflowEventPublisher.publishTransient(runId, stepId, NovelWorkflowEventType.TOKEN.getCode(),
             java.util.Collections.singletonMap("text", chunk));
     }
 

@@ -19,6 +19,15 @@
         order by event_id asc
     </select>
 
+    <select id="selectReplayEventsByRunIdAfterId" resultMap="NovelWorkflowEventResult">
+        select event_id, run_id, step_id, event_type, payload_json, create_time
+        from novel_workflow_event
+        where run_id = #{runId}
+        and event_type &lt;&gt; 'token'
+        <if test="afterEventId != null">and event_id &gt; #{afterEventId}</if>
+        order by event_id asc
+    </select>
+
     <insert id="insertNovelWorkflowEvent" useGeneratedKeys="true" keyProperty="eventId">
         insert into novel_workflow_event (run_id, step_id, event_type, payload_json, create_time)
         values (#{runId}, #{stepId}, #{eventType}, #{payloadJson}, sysdate())
