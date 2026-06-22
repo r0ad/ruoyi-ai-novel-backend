@@ -34,6 +34,12 @@
         order by run_id desc limit 1
     </select>
 
+    <select id="selectLatestRunByProjectId" resultMap="NovelWorkflowRunResult">
+        <include refid="selectVo"/>
+        where project_id = #{projectId}
+        order by run_id desc limit 1
+    </select>
+
     <select id="selectNovelWorkflowRunList" resultMap="NovelWorkflowRunResult">
         <include refid="selectVo"/>
         <where>

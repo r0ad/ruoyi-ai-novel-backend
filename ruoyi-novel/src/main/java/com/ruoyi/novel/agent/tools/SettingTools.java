@@ -46,6 +46,10 @@ public class SettingTools
     public String getSetting(@ToolParam(description = "设定类型") String settingType)
     {
         Long projectId = NovelToolContext.getProjectId();
+        if (projectId == null)
+        {
+            return "错误：工具上下文丢失(projectId 为空)，请重试本步骤";
+        }
         NovelSetting setting = novelSettingService.selectNovelSettingByProjectAndType(projectId, settingType);
         publishTool("getSetting", settingType);
         if (setting == null || StringUtils.isEmpty(setting.getContent()))

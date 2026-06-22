@@ -2,6 +2,7 @@ package com.ruoyi.novel.agent;
 
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import com.ruoyi.novel.ai.sse.WorkflowEventPublisher;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowEventType;
@@ -13,6 +14,7 @@ import com.ruoyi.novel.workflow.enums.NovelWorkflowEventType;
 public class NovelAgentUtilsBridge
 {
     @Autowired(required = false)
+    @Qualifier("novelAgentUtilToolCallbacks")
     private ToolCallback[] agentUtilToolCallbacks;
 
     @Autowired

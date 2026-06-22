@@ -1,6 +1,5 @@
 package com.ruoyi.novel.ai.sse;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -52,11 +51,18 @@ public class WorkflowEventPublisher
                 emitter.send(SseEmitter.event().name("workflow").data(JSON.toJSONString(event)));
             }
         }
-        catch (IOException ex)
+        catch (Exception ex)
         {
-            log.debug("SSE initial send failed for run {}", runId, ex);
+            if (isClientDisconnect(ex))
+            {
+                log.debug("SSE initial send failed, client disconnected for run {}", runId);
+            }
+            else
+            {
+                log.debug("SSE initial send failed for run {}", runId, ex);
+            }
             removeEmitter(runId, emitter);
-            emitter.completeWithError(ex);
+            completeQuietly(emitter);
         }
     }
 
@@ -79,18 +85,67 @@ public class WorkflowEventPublisher
         {
             return;
         }
+        String payload = JSON.toJSONString(event);
         for (SseEmitter emitter : list)
         {
-            try
-            {
-                emitter.send(SseEmitter.event().name("workflow").data(JSON.toJSONString(event)));
-            }
-            catch (IOException ex)
-            {
-                log.debug("SSE send failed for run {}", runId, ex);
-                removeEmitter(runId, emitter);
-            }
+            safeSend(runId, emitter, payload);
         }
+    }
+
+    private void safeSend(Long runId, SseEmitter emitter, String payload)
+    {
+        try
+        {
+            emitter.send(SseEmitter.event().name("workflow").data(payload));
+        }
+        catch (Exception ex)
+        {
+            if (isClientDisconnect(ex))
+            {
+                log.debug("SSE client disconnected for run {}", runId);
+            }
+            else
+            {
+                log.warn("SSE send failed for run {}", runId, ex);
+            }
+            removeEmitter(runId, emitter);
+            completeQuietly(emitter);
+        }
+    }
+
+    private void completeQuietly(SseEmitter emitter)
+    {
+        try
+        {
+            emitter.complete();
+        }
+        catch (Exception ignored)
+        {
+        }
+    }
+
+    private boolean isClientDisconnect(Throwable ex)
+    {
+        while (ex != null)
+        {
+            String className = ex.getClass().getName();
+            if (className.contains("ClientAbortException")
+                || className.contains("AsyncRequestNotUsableException")
+                || className.contains("ClosedChannelException"))
+            {
+                return true;
+            }
+            String message = ex.getMessage();
+            if (message != null && (message.contains("中止了一个已建立的连接")
+                || message.contains("Connection reset")
+                || message.contains("Broken pipe")
+                || message.contains("disconnected client")))
+            {
+                return true;
+            }
+            ex = ex.getCause();
+        }
+        return false;
     }
 
     private void removeEmitter(Long runId, SseEmitter emitter)
@@ -99,6 +154,10 @@ public class WorkflowEventPublisher
         if (list != null)
         {
             list.remove(emitter);
+            if (list.isEmpty())
+            {
+                emitters.remove(runId);
+            }
         }
     }
 }

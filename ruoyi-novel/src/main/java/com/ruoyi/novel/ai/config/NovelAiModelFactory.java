@@ -1,5 +1,6 @@
 package com.ruoyi.novel.ai.config;
 
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.anthropic.AnthropicChatModel;
@@ -84,7 +85,7 @@ public class NovelAiModelFactory
         {
             throw new IllegalStateException("未配置激活的 AI 模型");
         }
-        ChatModel chatModel = buildChatModel(model, novelAiKeyCrypto.decrypt(model.getApiKey()));
+        ChatModel chatModel = buildChatModel(model, novelAiKeyCrypto.decrypt(model.getApiKey()), true);
         ChatClient.Builder builder = ChatClient.builder(chatModel);
         if (tools != null && tools.length > 0)
         {
@@ -121,6 +122,11 @@ public class NovelAiModelFactory
 
     public ChatModel buildChatModel(NovelAiModel model, String plainApiKey)
     {
+        return buildChatModel(model, plainApiKey, false);
+    }
+
+    public ChatModel buildChatModel(NovelAiModel model, String plainApiKey, boolean agentMode)
+    {
         if (model == null)
         {
             throw new IllegalArgumentException("模型配置不能为空");
@@ -131,7 +137,9 @@ public class NovelAiModelFactory
         }
         double temperature = model.getTemperature() != null ? model.getTemperature().doubleValue() : 0.7D;
         int maxTokens = model.getMaxTokens() != null ? model.getMaxTokens() : 4096;
-        int timeoutMs = NovelAiHttpTimeoutCustomizer.resolveTimeoutMs(model.getTimeoutMs());
+        int timeoutMs = agentMode
+            ? NovelAiHttpTimeoutCustomizer.resolveAgentTimeoutMs(model.getTimeoutMs())
+            : NovelAiHttpTimeoutCustomizer.resolveTimeoutMs(model.getTimeoutMs());
         String provider = StringUtils.defaultString(model.getProviderType()).toLowerCase();
         if (NovelAiModel.PROVIDER_ANTHROPIC.equals(provider))
         {
@@ -143,12 +151,14 @@ public class NovelAiModelFactory
     private ChatModel buildOpenAiChatModel(NovelAiModel model, String plainApiKey, double temperature, int maxTokens,
         int timeoutMs)
     {
+        Duration requestTimeout = NovelAiHttpTimeoutCustomizer.requestDuration(timeoutMs);
         OpenAiChatOptions options = OpenAiChatOptions.builder()
             .apiKey(plainApiKey)
             .baseUrl(normalizeBaseUrl(model.getBaseUrl()))
             .model(model.getModelCode())
             .temperature(temperature)
             .maxTokens(maxTokens)
+            .timeout(requestTimeout)
             .build();
         return OpenAiChatModel.builder()
             .options(options)
@@ -159,11 +169,13 @@ public class NovelAiModelFactory
     private ChatModel buildAnthropicChatModel(NovelAiModel model, String plainApiKey, double temperature, int maxTokens,
         int timeoutMs)
     {
+        Duration requestTimeout = NovelAiHttpTimeoutCustomizer.requestDuration(timeoutMs);
         AnthropicChatOptions.Builder optionsBuilder = AnthropicChatOptions.builder()
             .apiKey(plainApiKey)
             .model(model.getModelCode())
             .temperature(temperature)
-            .maxTokens(maxTokens);
+            .maxTokens(maxTokens)
+            .timeout(requestTimeout);
         if (StringUtils.isNotEmpty(model.getBaseUrl()))
         {
             optionsBuilder.baseUrl(normalizeBaseUrl(model.getBaseUrl()));

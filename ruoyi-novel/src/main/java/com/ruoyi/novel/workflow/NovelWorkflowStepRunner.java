@@ -20,13 +20,13 @@ import com.ruoyi.novel.ai.session.service.INovelAiSessionService;
 import com.ruoyi.novel.ai.sse.WorkflowEventPublisher;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowRun;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowStep;
+import com.ruoyi.novel.workflow.domain.NovelWorkflowStepReadiness;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowEventType;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowRunStatus;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowStepCode;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowStepStatus;
 import com.ruoyi.novel.workflow.mapper.NovelWorkflowRunMapper;
 import com.ruoyi.novel.workflow.mapper.NovelWorkflowStepMapper;
-import reactor.core.publisher.Flux;
 
 @Component
 public class NovelWorkflowStepRunner
@@ -51,6 +51,12 @@ public class NovelWorkflowStepRunner
     @Autowired
     private INovelAiSessionService novelAiSessionService;
 
+    @Autowired
+    private NovelWorkflowAgentInvoker novelWorkflowAgentInvoker;
+
+    @Autowired
+    private NovelWorkflowStepValidator novelWorkflowStepValidator;
+
     public void executeAsync(Long runId, Long stepId, NovelWorkflowStepCode stepCode)
     {
         if (TransactionSynchronizationManager.isSynchronizationActive())
@@ -68,6 +74,11 @@ public class NovelWorkflowStepRunner
         {
             runStepAsync(runId, stepId, stepCode);
         }
+    }
+
+    public void chatAsync(Long runId, Long stepId)
+    {
+        CompletableFuture.runAsync(() -> executeChat(runId, stepId));
     }
 
     private void runStepAsync(Long runId, Long stepId, NovelWorkflowStepCode stepCode)
@@ -96,47 +107,17 @@ public class NovelWorkflowStepRunner
             step.setAgentSessionId(session.getSessionId());
             novelWorkflowStepMapper.updateNovelWorkflowStep(step);
 
-            ChatClient client = novelAgentFactory.createForStep(stepCode, toolContext);
-            String system = novelPromptTemplateService.buildSystemPrompt(run, stepCode);
             String user = buildStepUserPrompt(run, stepCode);
             novelAiSessionService.appendMessage(session.getSessionId(), "user", user);
 
-            String response = invokeAgent(runId, stepId, client, system, user);
-            if (StringUtils.isEmpty(response))
-            {
-                response = "（步骤已完成，无文本输出）";
-            }
-            novelAiSessionService.appendMessage(session.getSessionId(), "assistant", response);
-
-            step.setOutputSnapshot(response);
-            step.setStatus(NovelWorkflowStepStatus.WAITING_CONFIRM.getCode());
-            step.setFinishedAt(new Date());
-            novelWorkflowStepMapper.updateNovelWorkflowStep(step);
-
-            run.setStatus(NovelWorkflowRunStatus.WAITING_CONFIRM.getCode());
-            novelWorkflowRunMapper.updateNovelWorkflowRun(run);
-
-            java.util.Map<String, Object> completedPayload = new java.util.HashMap<String, Object>();
-            completedPayload.put("stepCode", stepCode.getCode());
-            completedPayload.put("output", response);
-            workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.STEP_COMPLETED.getCode(),
-                completedPayload);
-            workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.RUN_STATUS.getCode(),
-                java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.WAITING_CONFIRM.getCode()));
+            ChatClient client = novelAgentFactory.createForStep(stepCode, toolContext);
+            String response = novelWorkflowAgentInvoker.invoke(runId, stepId, run, stepCode, client,
+                session.getSessionId());
+            finishStepInteraction(run, step, stepCode, session.getSessionId(), response);
         }
         catch (Exception ex)
         {
-            log.error("Workflow step failed runId={} step={}", runId, stepCode, ex);
-            step.setStatus(NovelWorkflowStepStatus.FAILED.getCode());
-            step.setErrorMessage(ex.getMessage());
-            step.setFinishedAt(new Date());
-            novelWorkflowStepMapper.updateNovelWorkflowStep(step);
-            run.setStatus(NovelWorkflowRunStatus.FAILED.getCode());
-            novelWorkflowRunMapper.updateNovelWorkflowRun(run);
-            workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.STEP_FAILED.getCode(),
-                java.util.Collections.singletonMap("error", ex.getMessage()));
-            workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.RUN_STATUS.getCode(),
-                java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.FAILED.getCode()));
+            failStep(run, step, runId, stepId, ex);
         }
         finally
         {
@@ -144,45 +125,99 @@ public class NovelWorkflowStepRunner
         }
     }
 
-    private String invokeAgent(Long runId, Long stepId, ChatClient client, String system, String user)
+    private void executeChat(Long runId, Long stepId)
     {
-        StringBuilder responseBuilder = new StringBuilder();
-        try
+        NovelWorkflowRun run = novelWorkflowRunMapper.selectNovelWorkflowRunByRunId(runId);
+        NovelWorkflowStep step = novelWorkflowStepMapper.selectNovelWorkflowStepByStepId(stepId);
+        if (run == null || step == null || step.getAgentSessionId() == null)
         {
-            Flux<String> flux = client.prompt().system(system).user(user).stream().content();
-            flux.doOnNext(chunk -> appendToken(runId, stepId, responseBuilder, chunk)).blockLast();
-            if (responseBuilder.length() > 0)
-            {
-                return responseBuilder.toString();
-            }
+            log.warn("Workflow chat skipped runId={} stepId={}", runId, stepId);
+            return;
         }
-        catch (Exception streamEx)
-        {
-            log.debug("Agent stream unavailable runId={} stepId={}", runId, stepId, streamEx);
-        }
-        String response = client.prompt().system(system).user(user).call().content();
-        if (StringUtils.isNotEmpty(response) && responseBuilder.length() == 0)
-        {
-            appendToken(runId, stepId, responseBuilder, response);
-        }
-        return StringUtils.isNotEmpty(response) ? response : responseBuilder.toString();
-    }
-
-    private void appendToken(Long runId, Long stepId, StringBuilder responseBuilder, String chunk)
-    {
-        if (StringUtils.isEmpty(chunk))
+        NovelWorkflowStepCode stepCode = NovelWorkflowStepCode.fromCode(run.getCurrentStep());
+        if (stepCode == null)
         {
             return;
         }
-        responseBuilder.append(chunk);
-        workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.TOKEN.getCode(),
-            java.util.Collections.singletonMap("text", chunk));
+        NovelToolContext.set(runId, run.getProjectId(), stepId, true, run.getCreateBy());
+        NovelToolContext.Context toolContext = NovelToolContext.get();
+        try
+        {
+            run.setStatus(NovelWorkflowRunStatus.RUNNING.getCode());
+            novelWorkflowRunMapper.updateNovelWorkflowRun(run);
+            workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.RUN_STATUS.getCode(),
+                java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.RUNNING.getCode()));
+
+            ChatClient client = novelAgentFactory.createForStep(stepCode, toolContext);
+            String response = novelWorkflowAgentInvoker.invoke(runId, stepId, run, stepCode, client,
+                step.getAgentSessionId());
+            finishStepInteraction(run, step, stepCode, step.getAgentSessionId(), response);
+        }
+        catch (Exception ex)
+        {
+            failStep(run, step, runId, stepId, ex);
+        }
+        finally
+        {
+            NovelToolContext.clear();
+        }
+    }
+
+    private void finishStepInteraction(NovelWorkflowRun run, NovelWorkflowStep step, NovelWorkflowStepCode stepCode,
+        Long sessionId, String response)
+    {
+        if (StringUtils.isEmpty(response))
+        {
+            response = "（Agent 未返回文本，请继续对话或重试）";
+        }
+        novelAiSessionService.appendMessage(sessionId, "assistant", response);
+
+        NovelWorkflowStepReadiness readiness = novelWorkflowStepValidator.evaluate(run.getProjectId(), stepCode);
+        String snapshot = response;
+        if (!readiness.isReady() && StringUtils.isNotEmpty(readiness.getHint())
+            && !NovelWorkflowStepValidator.isInteractiveStep(stepCode))
+        {
+            snapshot = response + "\n\n---\n**待完成**：" + readiness.getHint();
+        }
+
+        step.setOutputSnapshot(snapshot);
+        step.setStatus(NovelWorkflowStepStatus.WAITING_CONFIRM.getCode());
+        step.setFinishedAt(new Date());
+        step.setErrorMessage(null);
+        novelWorkflowStepMapper.updateNovelWorkflowStep(step);
+
+        run.setStatus(NovelWorkflowRunStatus.WAITING_CONFIRM.getCode());
+        novelWorkflowRunMapper.updateNovelWorkflowRun(run);
+
+        java.util.Map<String, Object> completedPayload = new java.util.HashMap<String, Object>();
+        completedPayload.put("stepCode", stepCode.getCode());
+        completedPayload.put("output", snapshot);
+        completedPayload.put("ready", readiness.isReady());
+        workflowEventPublisher.publish(run.getRunId(), step.getStepId(), NovelWorkflowEventType.STEP_COMPLETED.getCode(),
+            completedPayload);
+        workflowEventPublisher.publish(run.getRunId(), step.getStepId(), NovelWorkflowEventType.RUN_STATUS.getCode(),
+            java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.WAITING_CONFIRM.getCode()));
+    }
+
+    private void failStep(NovelWorkflowRun run, NovelWorkflowStep step, Long runId, Long stepId, Exception ex)
+    {
+        log.error("Workflow step failed runId={} step={}", runId, run.getCurrentStep(), ex);
+        step.setStatus(NovelWorkflowStepStatus.FAILED.getCode());
+        step.setErrorMessage(ex.getMessage());
+        step.setFinishedAt(new Date());
+        novelWorkflowStepMapper.updateNovelWorkflowStep(step);
+        run.setStatus(NovelWorkflowRunStatus.FAILED.getCode());
+        novelWorkflowRunMapper.updateNovelWorkflowRun(run);
+        workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.STEP_FAILED.getCode(),
+            java.util.Collections.singletonMap("error", ex.getMessage()));
+        workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.RUN_STATUS.getCode(),
+            java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.FAILED.getCode()));
     }
 
     private String buildStepUserPrompt(NovelWorkflowRun run, NovelWorkflowStepCode stepCode)
     {
         String base = novelPromptTemplateService.buildUserPrompt(run, stepCode);
-        com.alibaba.fastjson2.JSONObject ctx = JSON.parseObject(run.getContextJson());
+        JSONObject ctx = JSON.parseObject(run.getContextJson());
         if (ctx == null)
         {
             return base;

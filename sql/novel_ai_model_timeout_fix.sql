@@ -1,4 +1,4 @@
--- 流式续写/长文本生成建议更长超时（已有库可选执行）
+-- Agent 工作流（世界观/大纲等）建议 >= 10 分钟整请求超时；read 间隔超时由代码关闭
 UPDATE novel_ai_model
-SET timeout_ms = 300000
-WHERE timeout_ms IS NULL OR timeout_ms < 120000;
+SET timeout_ms = 900000
+WHERE timeout_ms IS NULL OR timeout_ms < 900000;

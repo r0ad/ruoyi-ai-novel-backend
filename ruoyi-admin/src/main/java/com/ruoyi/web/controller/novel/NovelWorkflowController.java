@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.ruoyi.common.annotation.Log;
@@ -16,6 +17,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.novel.ai.sse.WorkflowEventPublisher;
+import com.ruoyi.novel.workflow.domain.NovelWorkflowChatRequest;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowConfirmRequest;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowStartRequest;
 import com.ruoyi.novel.workflow.service.INovelWorkflowService;
@@ -40,9 +42,17 @@ public class NovelWorkflowController extends BaseController
 
     @PreAuthorize("@ss.hasPermi('novel:workflow:view')")
     @GetMapping("/run/{runId}")
-    public AjaxResult getRun(@PathVariable Long runId)
+    public AjaxResult getRun(@PathVariable Long runId,
+        @RequestParam(value = "stepCode", required = false) String stepCode)
     {
-        return success(novelWorkflowService.getRunDetail(runId));
+        return success(novelWorkflowService.getRunDetail(runId, stepCode));
+    }
+
+    @PreAuthorize("@ss.hasPermi('novel:workflow:view')")
+    @GetMapping("/run/{runId}/step/{stepCode}/messages")
+    public AjaxResult getStepMessages(@PathVariable Long runId, @PathVariable String stepCode)
+    {
+        return success(novelWorkflowService.getStepMessages(runId, stepCode));
     }
 
     @PreAuthorize("@ss.hasPermi('novel:workflow:view')")
@@ -58,6 +68,15 @@ public class NovelWorkflowController extends BaseController
     public AjaxResult confirm(@PathVariable Long runId, @RequestBody(required = false) NovelWorkflowConfirmRequest request)
     {
         novelWorkflowService.confirmStep(runId, request, getUsername());
+        return success(novelWorkflowService.getRunDetail(runId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('novel:workflow:confirm')")
+    @Log(title = "工作流步骤对话", businessType = BusinessType.UPDATE)
+    @PostMapping("/run/{runId}/chat")
+    public AjaxResult chat(@PathVariable Long runId, @RequestBody NovelWorkflowChatRequest request)
+    {
+        novelWorkflowService.chatInCurrentStep(runId, request);
         return success(novelWorkflowService.getRunDetail(runId));
     }
 

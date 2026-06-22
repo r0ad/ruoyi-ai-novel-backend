@@ -29,7 +29,12 @@ public class NovelPromptTemplateService
         StringBuilder sb = new StringBuilder();
         sb.append("你是一位专业网络小说创作 Agent，请用中文工作。");
         sb.append("\n当前步骤：").append(stepCode.getLabel());
-        sb.append("\n你必须优先调用提供的工具完成数据写入，然后再输出步骤总结。");
+        sb.append("\n【交互模式】");
+        sb.append("\n- 以对话方式与用户协作，每轮回复简洁清晰，可提问、可迭代修改。");
+        sb.append("\n- 用户满意并确认前，步骤视为未完成；收到修改意见时继续调用工具更新。");
+        sb.append("\n- 必须在适当时机调用工具写入数据库，不要只描述「将要做什么」。");
+        sb.append("\n- 需要查库时，**同一轮内立刻**调用 getProjectInfo / getSetting，禁止只写「让我先确认数据库状态」而不调用工具。");
+        sb.append("\n- 工具调用期间用户界面可能暂无文字输出，属正常现象；请继续完成全部工具调用后再给出总结。");
         appendSkill(sb, stepCode);
         if (run.getProjectId() != null)
         {
@@ -56,19 +61,19 @@ public class NovelPromptTemplateService
         switch (stepCode)
         {
             case INIT_PROJECT:
-                sb.append("请根据用户创意完善项目信息（书名、类型、简介、风格指南），调用 updateProject 工具保存。");
+                sb.append("本环节：完善项目信息。先简要说明理解，与用户协作完善书名、类型、简介、风格指南，调用 updateProject 保存。可多次修改直到用户满意。");
                 break;
             case WORLD_BUILDING:
-                sb.append("请构建完整世界观设定，调用 saveSetting(settingType=world) 保存 Markdown。");
+                sb.append("本环节：世界观构建。**首轮必须先调用 getProjectInfo 和 getSetting(world)**，再输出完整 Markdown 并调用 saveSetting(world) 保存。禁止只回复开场白或口头说将要查库。");
                 break;
             case CHARACTER_DESIGN:
-                sb.append("请设计主要角色，调用 saveSetting(characters) 保存角色档案，并为每个主要角色调用 saveMetaEntity。");
+                sb.append("本环节：角色设计。**首轮必须先调用 getSetting(world) 和 getSetting(characters)**，再设计角色并 saveSetting(characters) 保存，主要角色 saveMetaEntity。禁止只回复开场白。");
                 break;
             case PLOT_OUTLINE:
-                sb.append("请编写全书故事大纲，调用 saveSetting(outline) 保存。");
+                sb.append("本环节：故事大纲。**可先 getSetting(world/characters)** 再编写大纲，必须调用 saveSetting(outline) 保存。禁止只描述计划不调用工具。");
                 break;
             case CHAPTER_PLANNING:
-                sb.append("请根据大纲规划前若干章节（至少3章），为每章调用 createChapter，包含标题与摘要。");
+                sb.append("本环节：章节规划。根据大纲规划章节（至少3章），为每章调用 createChapter。可根据用户意见增删章节。");
                 break;
             case WRITE_CHAPTER:
                 sb.append("请为当前待写章节：先 getWritingContext，再撰写正文并 saveChapter，最后 extractMetaFromChapter。");

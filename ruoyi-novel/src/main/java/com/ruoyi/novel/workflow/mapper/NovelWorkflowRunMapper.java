@@ -9,6 +9,8 @@ public interface NovelWorkflowRunMapper
 
     NovelWorkflowRun selectActiveRunByProjectId(Long projectId);
 
+    NovelWorkflowRun selectLatestRunByProjectId(Long projectId);
+
     List<NovelWorkflowRun> selectNovelWorkflowRunList(NovelWorkflowRun run);
 
     int insertNovelWorkflowRun(NovelWorkflowRun run);

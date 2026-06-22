@@ -109,6 +109,10 @@ public class NovelWorkflowEngine
             }
             return NovelWorkflowStepCode.FINAL_REVIEW;
         }
+        if (current == NovelWorkflowStepCode.CHAPTER_PLANNING)
+        {
+            return null;
+        }
         return current.next();
     }
 

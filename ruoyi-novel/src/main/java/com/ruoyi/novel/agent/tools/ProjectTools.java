@@ -63,6 +63,10 @@ public class ProjectTools
     public String getProjectInfo()
     {
         Long projectId = NovelToolContext.getProjectId();
+        if (projectId == null)
+        {
+            return "错误：工具上下文丢失(projectId 为空)，请重试本步骤";
+        }
         NovelProject project = novelProjectService.selectNovelProjectByProjectId(projectId);
         if (project == null)
         {
