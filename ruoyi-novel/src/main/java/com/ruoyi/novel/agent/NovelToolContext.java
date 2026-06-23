@@ -18,12 +18,18 @@ public final class NovelToolContext
 
     public static void set(Long runId, Long projectId, Long stepId, boolean writeAllowed, String operator)
     {
+        set(runId, projectId, stepId, writeAllowed, operator, null);
+    }
+
+    public static void set(Long runId, Long projectId, Long stepId, boolean writeAllowed, String operator, Long userId)
+    {
         Context ctx = new Context();
         ctx.runId = runId;
         ctx.projectId = projectId;
         ctx.stepId = stepId;
         ctx.writeAllowed = writeAllowed;
         ctx.operator = operator;
+        ctx.userId = userId;
         HOLDER.set(ctx);
     }
 
@@ -79,5 +85,7 @@ public final class NovelToolContext
         public Long stepId;
         public boolean writeAllowed;
         public String operator;
+        /** 触发本次工作流的用户ID，异步线程无法从 SecurityContext 获取时使用 */
+        public Long userId;
     }
 }

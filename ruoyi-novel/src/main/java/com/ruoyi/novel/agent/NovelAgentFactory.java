@@ -55,7 +55,8 @@ public class NovelAgentFactory
 
     public ChatClient createForStep(NovelWorkflowStepCode stepCode, NovelToolContext.Context toolContext)
     {
-        if (!novelAiModelFactory.isReady(SecurityUtils.getUserId()))
+        Long userId = resolveUserId(toolContext);
+        if (!novelAiModelFactory.isReady(userId))
         {
             throw new ServiceException(NovelAiModelFactory.AI_MODEL_NOT_CONFIGURED);
         }
@@ -84,6 +85,7 @@ public class NovelAgentFactory
 
     private ChatClient buildWithExtras(NovelToolContext.Context toolContext, Object... domainTools)
     {
+        Long userId = resolveUserId(toolContext);
         Object[] tools = domainTools;
         if (toolContext != null)
         {
@@ -96,7 +98,7 @@ public class NovelAgentFactory
         ToolCallback[] extras = novelAgentUtilsBridge.getExtraToolCallbacks();
         if (extras.length == 0)
         {
-            return novelAiModelFactory.buildAgentClient(SecurityUtils.getUserId(), tools);
+            return novelAiModelFactory.buildAgentClient(userId, tools);
         }
         ToolCallback[] wrappedExtras = extras;
         if (toolContext != null)
@@ -110,7 +112,20 @@ public class NovelAgentFactory
         Object[] all = new Object[tools.length + wrappedExtras.length];
         System.arraycopy(tools, 0, all, 0, tools.length);
         System.arraycopy(wrappedExtras, 0, all, tools.length, wrappedExtras.length);
-        return novelAiModelFactory.buildAgentClient(SecurityUtils.getUserId(), all);
+        return novelAiModelFactory.buildAgentClient(userId, all);
+    }
+
+    /**
+     * 优先从 toolContext 中取 userId（异步线程场景），
+     * toolContext 中无 userId 时才回退到 SecurityContextHolder（HTTP 请求线程场景）。
+     */
+    private Long resolveUserId(NovelToolContext.Context toolContext)
+    {
+        if (toolContext != null && toolContext.userId != null)
+        {
+            return toolContext.userId;
+        }
+        return SecurityUtils.getUserId();
     }
 
     private ChatClient buildWithExtras(Object... domainTools)

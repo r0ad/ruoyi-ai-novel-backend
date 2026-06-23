@@ -15,6 +15,8 @@ import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.novel.agent.NovelAgentFactory;
 import com.ruoyi.novel.agent.NovelToolContext;
 import com.ruoyi.novel.agent.prompts.NovelPromptTemplateService;
+import com.ruoyi.novel.domain.NovelProject;
+import com.ruoyi.novel.mapper.NovelProjectMapper;
 import com.ruoyi.novel.ai.session.domain.NovelAiSession;
 import com.ruoyi.novel.ai.session.service.INovelAiSessionService;
 import com.ruoyi.novel.ai.sse.WorkflowEventPublisher;
@@ -57,6 +59,9 @@ public class NovelWorkflowStepRunner
     @Autowired
     private NovelWorkflowStepValidator novelWorkflowStepValidator;
 
+    @Autowired
+    private NovelProjectMapper novelProjectMapper;
+
     public void executeAsync(Long runId, Long stepId, NovelWorkflowStepCode stepCode)
     {
         if (TransactionSynchronizationManager.isSynchronizationActive())
@@ -97,7 +102,7 @@ public class NovelWorkflowStepRunner
         }
         workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.STEP_STARTED.getCode(),
             java.util.Collections.singletonMap("stepCode", stepCode.getCode()));
-        NovelToolContext.set(runId, run.getProjectId(), stepId, true, run.getCreateBy());
+        NovelToolContext.set(runId, run.getProjectId(), stepId, true, run.getCreateBy(), resolveRunUserId(run));
         NovelToolContext.Context toolContext = NovelToolContext.get();
         try
         {
@@ -139,7 +144,7 @@ public class NovelWorkflowStepRunner
         {
             return;
         }
-        NovelToolContext.set(runId, run.getProjectId(), stepId, true, run.getCreateBy());
+        NovelToolContext.set(runId, run.getProjectId(), stepId, true, run.getCreateBy(), resolveRunUserId(run));
         NovelToolContext.Context toolContext = NovelToolContext.get();
         try
         {
@@ -212,6 +217,24 @@ public class NovelWorkflowStepRunner
             java.util.Collections.singletonMap("error", ex.getMessage()));
         workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.RUN_STATUS.getCode(),
             java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.FAILED.getCode()));
+    }
+
+    /**
+     * 解析工作流归属用户ID。异步线程无法读取安全上下文，
+     * 优先用 run 上记录的 userId，缺失时回退到项目归属用户，确保历史 run 也能正常执行。
+     */
+    private Long resolveRunUserId(NovelWorkflowRun run)
+    {
+        if (run.getUserId() != null)
+        {
+            return run.getUserId();
+        }
+        if (run.getProjectId() == null)
+        {
+            return null;
+        }
+        NovelProject project = novelProjectMapper.selectNovelProjectByProjectId(run.getProjectId());
+        return project != null ? project.getUserId() : null;
     }
 
     private String buildStepUserPrompt(NovelWorkflowRun run, NovelWorkflowStepCode stepCode)
