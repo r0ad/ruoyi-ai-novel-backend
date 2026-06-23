@@ -1,6 +1,7 @@
 package com.ruoyi.web.controller.novel;
 
 import java.util.List;
+import java.util.ArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -127,6 +128,22 @@ public class NovelChapterController extends BaseController
         novelChapter.setUpdateBy(getUsername());
         int rows = novelChapterService.insertNovelChapter(novelChapter);
         return rows > 0 ? success(novelChapter) : error();
+    }
+
+    /**
+     * 批量规划章节（仅需标题/摘要/序号，不含正文）
+     */
+    @PreAuthorize("@ss.hasPermi('novel:chapter:add')")
+    @Log(title = "批量规划章节", businessType = BusinessType.INSERT)
+    @PostMapping("/batch")
+    public AjaxResult batchAdd(@RequestBody List<NovelChapter> chapters)
+    {
+        if (chapters == null || chapters.isEmpty())
+        {
+            return error("章节列表不能为空");
+        }
+        List<NovelChapter> saved = novelChapterService.batchInsertNovelChapters(chapters, getUsername());
+        return success(saved);
     }
 
     /**

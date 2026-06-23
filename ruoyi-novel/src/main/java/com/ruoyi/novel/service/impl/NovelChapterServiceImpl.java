@@ -180,6 +180,51 @@ public class NovelChapterServiceImpl implements INovelChapterService
         return deleteNovelChapterByChapterIds(new Long[] { chapterId });
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<NovelChapter> batchInsertNovelChapters(List<NovelChapter> chapters, String createBy)
+    {
+        if (chapters == null || chapters.isEmpty())
+        {
+            return new ArrayList<>();
+        }
+        Long projectId = chapters.get(0).getProjectId();
+        Integer startNumber = novelChapterMapper.selectMaxChapterNumber(projectId);
+        int nextNum = startNumber == null ? 1 : startNumber + 1;
+        List<NovelChapter> saved = new ArrayList<>();
+        for (NovelChapter ch : chapters)
+        {
+            ch.setCreateBy(createBy);
+            ch.setUpdateBy(createBy);
+            if (ch.getChapterNumber() == null)
+            {
+                ch.setChapterNumber(nextNum++);
+            }
+            else
+            {
+                nextNum = ch.getChapterNumber() + 1;
+            }
+            prepareDefaults(ch, false);
+            ch.setWordCount(NovelWordCountUtils.countWords(ch.getContent()));
+            int rows = novelChapterMapper.insertNovelChapter(ch);
+            if (rows > 0)
+            {
+                if (ch.getContent() == null)
+                {
+                    ch.setContent("");
+                }
+                novelChapterMapper.insertNovelChapterContent(ch);
+                novelChapterMapper.insertNovelChapterVersion(ch);
+                saved.add(ch);
+            }
+        }
+        if (!saved.isEmpty())
+        {
+            refreshProjectStats(projectId);
+        }
+        return saved;
+    }
+
     private void prepareDefaults(NovelChapter novelChapter, boolean assignNumber)
     {
         if (novelChapter.getParentId() == null)

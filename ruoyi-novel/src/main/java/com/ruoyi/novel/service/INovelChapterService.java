@@ -18,6 +18,8 @@ public interface INovelChapterService
 
     public int insertNovelChapter(NovelChapter novelChapter);
 
+    public List<NovelChapter> batchInsertNovelChapters(List<NovelChapter> chapters, String createBy);
+
     public int updateNovelChapter(NovelChapter novelChapter);
 
     public int deleteNovelChapterByChapterIds(Long[] chapterIds);
