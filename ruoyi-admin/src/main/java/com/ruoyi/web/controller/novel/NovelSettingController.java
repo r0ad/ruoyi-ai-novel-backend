@@ -15,6 +15,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.novel.domain.NovelSetting;
+import com.ruoyi.novel.security.NovelProjectSecurity;
 import com.ruoyi.novel.service.INovelSettingService;
 
 /**
@@ -29,6 +30,9 @@ public class NovelSettingController extends BaseController
     @Autowired
     private INovelSettingService novelSettingService;
 
+    @Autowired
+    private NovelProjectSecurity novelProjectSecurity;
+
     /**
      * 查询项目全部设定
      */
@@ -36,6 +40,7 @@ public class NovelSettingController extends BaseController
     @GetMapping("/list/{projectId}")
     public AjaxResult list(@PathVariable Long projectId)
     {
+        novelProjectSecurity.checkProject(projectId);
         List<NovelSetting> list = novelSettingService.selectNovelSettingListByProjectId(projectId);
         return success(list);
     }
@@ -47,6 +52,7 @@ public class NovelSettingController extends BaseController
     @GetMapping("/{projectId}/{settingType}")
     public AjaxResult getByType(@PathVariable Long projectId, @PathVariable String settingType)
     {
+        novelProjectSecurity.checkProject(projectId);
         NovelSetting setting = novelSettingService.selectNovelSettingByProjectAndType(projectId, settingType);
         return success(setting);
     }
@@ -69,6 +75,7 @@ public class NovelSettingController extends BaseController
     @PutMapping
     public AjaxResult save(@Validated @RequestBody NovelSetting novelSetting)
     {
+        novelProjectSecurity.checkProject(novelSetting.getProjectId());
         novelSetting.setUpdateBy(getUsername());
         if (novelSetting.getSettingId() == null)
         {

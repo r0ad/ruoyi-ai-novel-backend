@@ -23,6 +23,9 @@ public class NovelProject extends BaseEntity
     @Excel(name = "项目UUID")
     private String projectUuid;
 
+    /** 归属用户ID */
+    private Long userId;
+
     /** 书名 */
     @Excel(name = "书名")
     private String title;
@@ -73,6 +76,16 @@ public class NovelProject extends BaseEntity
     public void setProjectUuid(String projectUuid)
     {
         this.projectUuid = projectUuid;
+    }
+
+    public Long getUserId()
+    {
+        return userId;
+    }
+
+    public void setUserId(Long userId)
+    {
+        this.userId = userId;
     }
 
     @NotBlank(message = "书名不能为空")
@@ -173,6 +186,7 @@ public class NovelProject extends BaseEntity
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
             .append("projectId", getProjectId())
             .append("projectUuid", getProjectUuid())
+            .append("userId", getUserId())
             .append("title", getTitle())
             .append("genre", getGenre())
             .append("status", getStatus())

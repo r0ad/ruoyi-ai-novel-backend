@@ -21,6 +21,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.novel.domain.NovelChapter;
 import com.ruoyi.novel.rag.service.INovelContextService;
+import com.ruoyi.novel.security.NovelProjectSecurity;
 import com.ruoyi.novel.service.INovelChapterService;
 import com.ruoyi.novel.service.INovelChapterVersionService;
 
@@ -42,6 +43,9 @@ public class NovelChapterController extends BaseController
     @Autowired
     private INovelContextService novelContextService;
 
+    @Autowired
+    private NovelProjectSecurity novelProjectSecurity;
+
     /**
      * 查询章节列表
      */
@@ -49,6 +53,7 @@ public class NovelChapterController extends BaseController
     @GetMapping("/list")
     public TableDataInfo list(NovelChapter novelChapter)
     {
+        novelProjectSecurity.checkProject(novelChapter.getProjectId());
         startPage();
         List<NovelChapter> list = novelChapterService.selectNovelChapterList(novelChapter);
         return getDataTable(list);
@@ -61,6 +66,7 @@ public class NovelChapterController extends BaseController
     @GetMapping("/tree/{projectId}")
     public AjaxResult tree(@PathVariable Long projectId)
     {
+        novelProjectSecurity.checkProject(projectId);
         return success(novelChapterService.selectNovelChapterTreeByProjectId(projectId));
     }
 
@@ -71,6 +77,7 @@ public class NovelChapterController extends BaseController
     @GetMapping("/{chapterId}/versions")
     public AjaxResult versions(@PathVariable Long chapterId)
     {
+        novelProjectSecurity.checkChapter(chapterId);
         return success(novelChapterVersionService.selectVersionsByChapterId(chapterId));
     }
 
@@ -82,6 +89,7 @@ public class NovelChapterController extends BaseController
     public AjaxResult compareVersions(@PathVariable Long chapterId,
             @RequestParam Integer fromVersionNo, @RequestParam Integer toVersionNo)
     {
+        novelProjectSecurity.checkChapter(chapterId);
         return success(novelChapterVersionService.compareVersions(chapterId, fromVersionNo, toVersionNo));
     }
 
@@ -92,6 +100,7 @@ public class NovelChapterController extends BaseController
     @GetMapping("/{chapterId}/versions/{versionNo}")
     public AjaxResult versionDetail(@PathVariable Long chapterId, @PathVariable Integer versionNo)
     {
+        novelProjectSecurity.checkChapter(chapterId);
         return success(novelChapterVersionService.selectVersion(chapterId, versionNo));
     }
 
@@ -103,6 +112,7 @@ public class NovelChapterController extends BaseController
     @PostMapping("/{chapterId}/revert/{versionNo}")
     public AjaxResult revert(@PathVariable Long chapterId, @PathVariable Integer versionNo)
     {
+        novelProjectSecurity.checkChapter(chapterId);
         return toAjax(novelChapterVersionService.revertToVersion(chapterId, versionNo, getUsername()));
     }
 
@@ -113,6 +123,7 @@ public class NovelChapterController extends BaseController
     @GetMapping(value = "/{chapterId}")
     public AjaxResult getInfo(@PathVariable Long chapterId)
     {
+        novelProjectSecurity.checkChapter(chapterId);
         return success(novelChapterService.selectNovelChapterByChapterId(chapterId));
     }
 
@@ -124,6 +135,7 @@ public class NovelChapterController extends BaseController
     @PostMapping
     public AjaxResult add(@Validated @RequestBody NovelChapter novelChapter)
     {
+        novelProjectSecurity.checkProject(novelChapter.getProjectId());
         novelChapter.setCreateBy(getUsername());
         novelChapter.setUpdateBy(getUsername());
         int rows = novelChapterService.insertNovelChapter(novelChapter);
@@ -142,6 +154,10 @@ public class NovelChapterController extends BaseController
         {
             return error("章节列表不能为空");
         }
+        for (NovelChapter chapter : chapters)
+        {
+            novelProjectSecurity.checkProject(chapter.getProjectId());
+        }
         List<NovelChapter> saved = novelChapterService.batchInsertNovelChapters(chapters, getUsername());
         return success(saved);
     }
@@ -154,6 +170,7 @@ public class NovelChapterController extends BaseController
     @PutMapping
     public AjaxResult edit(@Validated @RequestBody NovelChapter novelChapter)
     {
+        novelProjectSecurity.checkChapter(novelChapter.getChapterId());
         novelChapter.setUpdateBy(getUsername());
         return toAjax(novelChapterService.updateNovelChapter(novelChapter));
     }
@@ -163,6 +180,7 @@ public class NovelChapterController extends BaseController
     public AjaxResult getWritingContext(@PathVariable Long chapterId,
         @RequestParam(defaultValue = "1") int rangeBefore)
     {
+        novelProjectSecurity.checkChapter(chapterId);
         NovelChapter chapter = novelChapterService.selectNovelChapterByChapterId(chapterId);
         if (chapter == null)
         {
@@ -182,6 +200,7 @@ public class NovelChapterController extends BaseController
     @DeleteMapping("/{chapterIds}")
     public AjaxResult remove(@PathVariable Long[] chapterIds)
     {
+        novelProjectSecurity.checkChapters(chapterIds);
         return toAjax(novelChapterService.deleteNovelChapterByChapterIds(chapterIds));
     }
 }

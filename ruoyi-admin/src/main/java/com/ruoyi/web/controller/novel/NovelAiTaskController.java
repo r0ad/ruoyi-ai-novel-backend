@@ -17,6 +17,7 @@ import com.ruoyi.novel.ai.domain.dto.AiTaskApplyRequest;
 import com.ruoyi.novel.ai.domain.dto.AiTaskCreateRequest;
 import com.ruoyi.novel.ai.task.domain.NovelAiTask;
 import com.ruoyi.novel.ai.task.service.INovelAiTaskService;
+import com.ruoyi.novel.security.NovelProjectSecurity;
 
 @RestController
 @RequestMapping("/novel/ai/task")
@@ -25,11 +26,15 @@ public class NovelAiTaskController extends BaseController
     @Autowired
     private INovelAiTaskService novelAiTaskService;
 
+    @Autowired
+    private NovelProjectSecurity novelProjectSecurity;
+
     @PreAuthorize("@ss.hasPermi('novel:ai:task')")
     @Log(title = "创建AI任务", businessType = BusinessType.OTHER)
     @PostMapping
     public AjaxResult create(@RequestBody AiTaskCreateRequest request)
     {
+        novelProjectSecurity.checkProject(request.getProjectId());
         NovelAiTask task = novelAiTaskService.createAndRun(request, getUsername());
         return success(task);
     }
@@ -38,6 +43,7 @@ public class NovelAiTaskController extends BaseController
     @GetMapping("/{taskId}")
     public AjaxResult get(@PathVariable Long taskId)
     {
+        novelProjectSecurity.checkTask(taskId);
         return success(novelAiTaskService.getTask(taskId));
     }
 
@@ -45,6 +51,15 @@ public class NovelAiTaskController extends BaseController
     @GetMapping("/list")
     public AjaxResult list(NovelAiTask query)
     {
+        if (query.getProjectId() != null)
+        {
+            novelProjectSecurity.checkProject(query.getProjectId());
+        }
+        // 非管理员仅能查看自己创建的任务
+        if (!novelProjectSecurity.isAdmin())
+        {
+            query.setCreateBy(getUsername());
+        }
         List<NovelAiTask> list = novelAiTaskService.listTasks(query);
         return success(list);
     }
@@ -54,6 +69,7 @@ public class NovelAiTaskController extends BaseController
     @PostMapping("/{taskId}/apply")
     public AjaxResult apply(@PathVariable Long taskId, @RequestBody(required = false) AiTaskApplyRequest request)
     {
+        novelProjectSecurity.checkTask(taskId);
         if (request == null)
         {
             request = new AiTaskApplyRequest();

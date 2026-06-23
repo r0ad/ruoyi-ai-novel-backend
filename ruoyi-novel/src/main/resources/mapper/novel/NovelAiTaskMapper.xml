@@ -38,6 +38,7 @@
             <if test="projectId != null">and project_id = #{projectId}</if>
             <if test="taskType != null and taskType != ''">and task_type = #{taskType}</if>
             <if test="status != null and status != ''">and status = #{status}</if>
+            <if test="createBy != null and createBy != ''">and create_by = #{createBy}</if>
         </where>
         order by task_id desc
     </select>

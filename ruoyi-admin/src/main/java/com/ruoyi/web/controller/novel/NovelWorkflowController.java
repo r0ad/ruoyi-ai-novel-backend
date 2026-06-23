@@ -18,6 +18,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.novel.ai.sse.WorkflowEventPublisher;
+import com.ruoyi.novel.security.NovelProjectSecurity;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowChatRequest;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowConfirmRequest;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowStartRequest;
@@ -33,11 +34,15 @@ public class NovelWorkflowController extends BaseController
     @Autowired
     private WorkflowEventPublisher workflowEventPublisher;
 
+    @Autowired
+    private NovelProjectSecurity novelProjectSecurity;
+
     @PreAuthorize("@ss.hasPermi('novel:workflow:start')")
     @Log(title = "启动创作工作流", businessType = BusinessType.INSERT)
     @PostMapping("/run")
     public AjaxResult start(@RequestBody NovelWorkflowStartRequest request)
     {
+        novelProjectSecurity.checkProject(request.getProjectId());
         return success(novelWorkflowService.startWorkflow(request, SecurityUtils.getUserId(), getUsername()));
     }
 
@@ -46,6 +51,7 @@ public class NovelWorkflowController extends BaseController
     public AjaxResult getRun(@PathVariable Long runId,
         @RequestParam(value = "stepCode", required = false) String stepCode)
     {
+        novelProjectSecurity.checkRun(runId);
         return success(novelWorkflowService.getRunDetail(runId, stepCode));
     }
 
@@ -53,6 +59,7 @@ public class NovelWorkflowController extends BaseController
     @GetMapping("/run/{runId}/step/{stepCode}/messages")
     public AjaxResult getStepMessages(@PathVariable Long runId, @PathVariable String stepCode)
     {
+        novelProjectSecurity.checkRun(runId);
         return success(novelWorkflowService.getStepMessages(runId, stepCode));
     }
 
@@ -60,6 +67,7 @@ public class NovelWorkflowController extends BaseController
     @GetMapping("/run/project/{projectId}")
     public AjaxResult getActiveByProject(@PathVariable Long projectId)
     {
+        novelProjectSecurity.checkProject(projectId);
         return success(novelWorkflowService.getActiveRunByProject(projectId));
     }
 
@@ -68,6 +76,7 @@ public class NovelWorkflowController extends BaseController
     @PostMapping("/run/{runId}/confirm")
     public AjaxResult confirm(@PathVariable Long runId, @RequestBody(required = false) NovelWorkflowConfirmRequest request)
     {
+        novelProjectSecurity.checkRun(runId);
         novelWorkflowService.confirmStep(runId, request, getUsername());
         return success(novelWorkflowService.getRunDetail(runId));
     }
@@ -77,6 +86,7 @@ public class NovelWorkflowController extends BaseController
     @PostMapping("/run/{runId}/chat")
     public AjaxResult chat(@PathVariable Long runId, @RequestBody NovelWorkflowChatRequest request)
     {
+        novelProjectSecurity.checkRun(runId);
         novelWorkflowService.chatInCurrentStep(runId, request);
         return success(novelWorkflowService.getRunDetail(runId));
     }
@@ -85,6 +95,7 @@ public class NovelWorkflowController extends BaseController
     @PostMapping("/run/{runId}/pause")
     public AjaxResult pause(@PathVariable Long runId)
     {
+        novelProjectSecurity.checkRun(runId);
         novelWorkflowService.pauseRun(runId);
         return success();
     }
@@ -93,6 +104,7 @@ public class NovelWorkflowController extends BaseController
     @PostMapping("/run/{runId}/resume")
     public AjaxResult resume(@PathVariable Long runId)
     {
+        novelProjectSecurity.checkRun(runId);
         novelWorkflowService.resumeRun(runId);
         return success();
     }
@@ -101,6 +113,7 @@ public class NovelWorkflowController extends BaseController
     @PostMapping("/run/{runId}/retry-step")
     public AjaxResult retry(@PathVariable Long runId)
     {
+        novelProjectSecurity.checkRun(runId);
         novelWorkflowService.retryCurrentStep(runId);
         return success(novelWorkflowService.getRunDetail(runId));
     }
@@ -111,6 +124,7 @@ public class NovelWorkflowController extends BaseController
         @RequestHeader(value = "Last-Event-ID", required = false) String lastEventIdHeader,
         @RequestParam(value = "lastEventId", required = false) Long lastEventIdParam)
     {
+        novelProjectSecurity.checkRun(runId);
         return workflowEventPublisher.subscribe(runId, resolveLastEventId(lastEventIdHeader, lastEventIdParam));
     }
 

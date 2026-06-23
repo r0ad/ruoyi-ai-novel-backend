@@ -20,6 +20,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.novel.domain.NovelProject;
+import com.ruoyi.novel.security.NovelProjectSecurity;
 import com.ruoyi.novel.service.INovelProjectService;
 
 /**
@@ -34,6 +35,9 @@ public class NovelProjectController extends BaseController
     @Autowired
     private INovelProjectService novelProjectService;
 
+    @Autowired
+    private NovelProjectSecurity novelProjectSecurity;
+
     /**
      * 查询小说项目列表
      */
@@ -41,6 +45,7 @@ public class NovelProjectController extends BaseController
     @GetMapping("/list")
     public TableDataInfo list(NovelProject novelProject)
     {
+        novelProjectSecurity.scopeQuery(novelProject);
         startPage();
         List<NovelProject> list = novelProjectService.selectNovelProjectList(novelProject);
         return getDataTable(list);
@@ -54,6 +59,7 @@ public class NovelProjectController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, NovelProject novelProject)
     {
+        novelProjectSecurity.scopeQuery(novelProject);
         List<NovelProject> list = novelProjectService.selectNovelProjectList(novelProject);
         ExcelUtil<NovelProject> util = new ExcelUtil<NovelProject>(NovelProject.class);
         util.exportExcel(response, list, "小说项目数据");
@@ -66,6 +72,7 @@ public class NovelProjectController extends BaseController
     @GetMapping(value = "/{projectId}")
     public AjaxResult getInfo(@PathVariable Long projectId)
     {
+        novelProjectSecurity.checkProject(projectId);
         return success(novelProjectService.selectNovelProjectByProjectId(projectId));
     }
 
@@ -78,6 +85,7 @@ public class NovelProjectController extends BaseController
     public AjaxResult add(@Validated @RequestBody NovelProject novelProject)
     {
         novelProject.setCreateBy(getUsername());
+        novelProjectSecurity.assignOwner(novelProject);
         return toAjax(novelProjectService.insertNovelProject(novelProject));
     }
 
@@ -89,7 +97,10 @@ public class NovelProjectController extends BaseController
     @PutMapping
     public AjaxResult edit(@Validated @RequestBody NovelProject novelProject)
     {
+        novelProjectSecurity.checkProject(novelProject.getProjectId());
         novelProject.setUpdateBy(getUsername());
+        // 防止越权篡改归属
+        novelProject.setUserId(null);
         return toAjax(novelProjectService.updateNovelProject(novelProject));
     }
 
@@ -101,6 +112,7 @@ public class NovelProjectController extends BaseController
     @DeleteMapping("/{projectIds}")
     public AjaxResult remove(@PathVariable Long[] projectIds)
     {
+        novelProjectSecurity.checkProjects(projectIds);
         return toAjax(novelProjectService.deleteNovelProjectByProjectIds(projectIds));
     }
 }

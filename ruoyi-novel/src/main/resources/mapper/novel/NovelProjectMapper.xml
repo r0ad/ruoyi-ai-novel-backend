@@ -7,6 +7,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <resultMap type="NovelProject" id="NovelProjectResult">
         <result property="projectId"      column="project_id"      />
         <result property="projectUuid"      column="project_uuid"      />
+        <result property="userId"         column="user_id"           />
         <result property="title"          column="title"             />
         <result property="genre"          column="genre"             />
         <result property="status"         column="status"            />
@@ -24,7 +25,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectNovelProjectVo">
-        select project_id, project_uuid, title, genre, status, word_count, chapter_count,
+        select project_id, project_uuid, user_id, title, genre, status, word_count, chapter_count,
                cover_url, summary, style_guide, del_flag, create_by, create_time, update_by, update_time, remark
         from novel_project
     </sql>
@@ -43,6 +44,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectNovelProjectVo"/>
         <where>
             del_flag = '0'
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
             <if test="title != null and title != ''">
                 AND title like concat('%', #{title}, '%')
             </if>
@@ -62,6 +66,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <insert id="insertNovelProject" parameterType="NovelProject" useGeneratedKeys="true" keyProperty="projectId">
         insert into novel_project (
             <if test="projectUuid != null and projectUuid != ''">project_uuid,</if>
+            <if test="userId != null">user_id,</if>
             <if test="title != null and title != ''">title,</if>
             <if test="genre != null and genre != ''">genre,</if>
             <if test="status != null and status != ''">status,</if>
@@ -75,6 +80,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             create_time
         ) values (
             <if test="projectUuid != null and projectUuid != ''">#{projectUuid},</if>
+            <if test="userId != null">#{userId},</if>
             <if test="title != null and title != ''">#{title},</if>
             <if test="genre != null and genre != ''">#{genre},</if>
             <if test="status != null and status != ''">#{status},</if>

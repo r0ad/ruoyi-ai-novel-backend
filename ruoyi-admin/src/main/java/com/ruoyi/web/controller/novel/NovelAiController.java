@@ -25,6 +25,8 @@ import com.ruoyi.novel.ai.invocation.INovelAiInvocationService;
 import com.ruoyi.novel.ai.session.domain.NovelAiSession;
 import com.ruoyi.novel.ai.session.service.INovelAiSessionService;
 import com.ruoyi.novel.ai.service.INovelAiService;
+import com.ruoyi.novel.ai.session.domain.NovelAiSession;
+import com.ruoyi.novel.security.NovelProjectSecurity;
 import com.ruoyi.novel.service.INovelChapterService;
 import reactor.core.publisher.Flux;
 
@@ -50,11 +52,15 @@ public class NovelAiController extends BaseController
     @Autowired
     private INovelChapterService novelChapterService;
 
+    @Autowired
+    private NovelProjectSecurity novelProjectSecurity;
+
     @PreAuthorize("@ss.hasPermi('novel:ai:chat')")
     @Log(title = "小说AI对话", businessType = BusinessType.OTHER)
     @PostMapping("/chat")
     public AjaxResult chat(@RequestBody NovelAiChatRequest request)
     {
+        novelProjectSecurity.checkProject(request.getProjectId());
         String content = novelAiService.chat(request);
         return success(Collections.singletonMap("content", content));
     }
@@ -64,6 +70,7 @@ public class NovelAiController extends BaseController
     @PostMapping(value = "/continue", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> continueWriting(@RequestBody NovelAiChatRequest request)
     {
+        novelProjectSecurity.checkProject(request.getProjectId());
         return novelAiService.continueStream(request);
     }
 
@@ -74,6 +81,7 @@ public class NovelAiController extends BaseController
     {
         Long projectId = body.get("projectId");
         Long chapterId = body.get("chapterId");
+        novelProjectSecurity.checkProject(projectId);
         String content = chapterId != null
             ? novelAiService.reviewChapter(projectId, chapterId)
             : novelAiService.reviewProject(projectId);
@@ -85,6 +93,7 @@ public class NovelAiController extends BaseController
     @PostMapping("/extract-meta")
     public AjaxResult extractMeta(@RequestBody Map<String, Long> body)
     {
+        novelProjectSecurity.checkProject(body.get("projectId"));
         String content = novelAiService.extractMeta(body.get("projectId"), body.get("chapterId"));
         return success(Collections.singletonMap("content", content));
     }
@@ -94,6 +103,7 @@ public class NovelAiController extends BaseController
     public AjaxResult createSession(@RequestBody Map<String, Object> body)
     {
         Long projectId = Long.valueOf(body.get("projectId").toString());
+        novelProjectSecurity.checkProject(projectId);
         String sessionType = body.get("sessionType") != null ? body.get("sessionType").toString() : "qa";
         String title = body.get("title") != null ? body.get("title").toString() : "AI会话";
         Long chapterId = body.get("chapterId") != null ? Long.valueOf(body.get("chapterId").toString()) : null;
@@ -106,6 +116,12 @@ public class NovelAiController extends BaseController
     @GetMapping("/session/{sessionId}/messages")
     public AjaxResult listMessages(@PathVariable Long sessionId)
     {
+        NovelAiSession session = novelAiSessionService.getSession(sessionId);
+        if (session == null)
+        {
+            return error("会话不存在");
+        }
+        novelProjectSecurity.checkProject(session.getProjectId());
         return success(novelAiSessionService.listMessages(sessionId));
     }
 
@@ -118,6 +134,10 @@ public class NovelAiController extends BaseController
     public AjaxResult suggestChapterMeta(@RequestBody Map<String, Object> body)
     {
         Long projectId = body.containsKey("projectId") ? Long.valueOf(body.get("projectId").toString()) : null;
+        if (projectId != null)
+        {
+            novelProjectSecurity.checkProject(projectId);
+        }
         String content = body.containsKey("content") ? (String) body.get("content") : "";
         if (StringUtils.isEmpty(content))
         {
@@ -153,6 +173,7 @@ public class NovelAiController extends BaseController
     public AjaxResult planChapters(@RequestBody Map<String, Object> body)
     {
         Long projectId = Long.valueOf(body.get("projectId").toString());
+        novelProjectSecurity.checkProject(projectId);
         int count = body.containsKey("count") ? Integer.parseInt(body.get("count").toString()) : 5;
         if (count < 1) count = 1;
         if (count > 50) count = 50;

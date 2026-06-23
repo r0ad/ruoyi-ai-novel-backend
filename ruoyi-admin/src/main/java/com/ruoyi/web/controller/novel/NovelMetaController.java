@@ -18,6 +18,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.novel.domain.NovelMetaEntity;
 import com.ruoyi.novel.domain.NovelMetaRelation;
+import com.ruoyi.novel.security.NovelProjectSecurity;
 import com.ruoyi.novel.service.INovelMetaService;
 
 @RestController
@@ -27,10 +28,14 @@ public class NovelMetaController extends BaseController
     @Autowired
     private INovelMetaService novelMetaService;
 
+    @Autowired
+    private NovelProjectSecurity novelProjectSecurity;
+
     @PreAuthorize("@ss.hasPermi('novel:meta:list')")
     @GetMapping("/graph/{projectId}")
     public AjaxResult graph(@PathVariable Long projectId)
     {
+        novelProjectSecurity.checkProject(projectId);
         return success(novelMetaService.selectGraphByProjectId(projectId));
     }
 
@@ -38,6 +43,7 @@ public class NovelMetaController extends BaseController
     @GetMapping("/entity/list/{projectId}")
     public AjaxResult entityList(@PathVariable Long projectId, NovelMetaEntity query)
     {
+        novelProjectSecurity.checkProject(projectId);
         query.setProjectId(projectId);
         List<NovelMetaEntity> list = novelMetaService.selectEntityList(query);
         return success(list);
@@ -47,6 +53,7 @@ public class NovelMetaController extends BaseController
     @GetMapping("/entity/{entityId}")
     public AjaxResult getEntity(@PathVariable Long entityId)
     {
+        novelProjectSecurity.checkMetaEntity(entityId);
         return success(novelMetaService.selectEntityById(entityId));
     }
 
@@ -55,6 +62,7 @@ public class NovelMetaController extends BaseController
     @PostMapping("/entity")
     public AjaxResult addEntity(@Validated @RequestBody NovelMetaEntity entity)
     {
+        novelProjectSecurity.checkProject(entity.getProjectId());
         entity.setCreateBy(getUsername());
         return toAjax(novelMetaService.insertEntity(entity));
     }
@@ -64,6 +72,7 @@ public class NovelMetaController extends BaseController
     @PutMapping("/entity")
     public AjaxResult editEntity(@Validated @RequestBody NovelMetaEntity entity)
     {
+        novelProjectSecurity.checkMetaEntity(entity.getEntityId());
         entity.setUpdateBy(getUsername());
         return toAjax(novelMetaService.updateEntity(entity));
     }
@@ -73,6 +82,7 @@ public class NovelMetaController extends BaseController
     @DeleteMapping("/entity/{entityIds}")
     public AjaxResult removeEntity(@PathVariable Long[] entityIds)
     {
+        novelProjectSecurity.checkMetaEntities(entityIds);
         return toAjax(novelMetaService.deleteEntityByIds(entityIds));
     }
 
@@ -80,6 +90,7 @@ public class NovelMetaController extends BaseController
     @GetMapping("/relation/list/{projectId}")
     public AjaxResult relationList(@PathVariable Long projectId, NovelMetaRelation query)
     {
+        novelProjectSecurity.checkProject(projectId);
         query.setProjectId(projectId);
         return success(novelMetaService.selectRelationList(query));
     }
@@ -89,6 +100,7 @@ public class NovelMetaController extends BaseController
     @PostMapping("/relation")
     public AjaxResult addRelation(@Validated @RequestBody NovelMetaRelation relation)
     {
+        novelProjectSecurity.checkProject(relation.getProjectId());
         relation.setCreateBy(getUsername());
         return toAjax(novelMetaService.insertRelation(relation));
     }
@@ -98,6 +110,7 @@ public class NovelMetaController extends BaseController
     @PutMapping("/relation")
     public AjaxResult editRelation(@Validated @RequestBody NovelMetaRelation relation)
     {
+        novelProjectSecurity.checkMetaRelations(new Long[]{relation.getRelationId()});
         return toAjax(novelMetaService.updateRelation(relation));
     }
 
@@ -106,6 +119,7 @@ public class NovelMetaController extends BaseController
     @DeleteMapping("/relation/{relationIds}")
     public AjaxResult removeRelation(@PathVariable Long[] relationIds)
     {
+        novelProjectSecurity.checkMetaRelations(relationIds);
         return toAjax(novelMetaService.deleteRelationByIds(relationIds));
     }
 }
