@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.novel.ai.config.NovelAiModelFactory;
 import com.ruoyi.novel.ai.domain.NovelAiModel;
@@ -32,10 +33,10 @@ public class NovelAiInvocationServiceImpl implements INovelAiInvocationService
     @Override
     public String invoke(String source, String systemPrompt, String userPrompt)
     {
-        ChatClient client = novelAiModelFactory.getChatClient();
+        ChatClient client = novelAiModelFactory.getChatClient(SecurityUtils.getUserId());
         if (client == null)
         {
-            throw new ServiceException("未配置激活的 AI 模型，请先在「AI模型管理」中添加并激活模型");
+            throw new ServiceException(NovelAiModelFactory.AI_MODEL_NOT_CONFIGURED);
         }
 
         AiInvocationRecord record = new AiInvocationRecord();
@@ -89,7 +90,7 @@ public class NovelAiInvocationServiceImpl implements INovelAiInvocationService
 
     private void fillModelInfo(AiInvocationRecord record)
     {
-        NovelAiModel model = novelAiModelFactory.getActiveModel();
+        NovelAiModel model = novelAiModelFactory.getActiveModel(SecurityUtils.getUserId());
         if (model == null)
         {
             return;

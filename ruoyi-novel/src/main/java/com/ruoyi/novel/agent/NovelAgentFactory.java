@@ -5,6 +5,7 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.novel.agent.tools.ChapterTools;
 import com.ruoyi.novel.agent.tools.ContextTools;
 import com.ruoyi.novel.agent.tools.MetaTools;
@@ -54,9 +55,9 @@ public class NovelAgentFactory
 
     public ChatClient createForStep(NovelWorkflowStepCode stepCode, NovelToolContext.Context toolContext)
     {
-        if (!novelAiModelFactory.isReady())
+        if (!novelAiModelFactory.isReady(SecurityUtils.getUserId()))
         {
-            throw new ServiceException("未配置激活的 AI 模型，请先在「AI模型管理」中添加并激活模型");
+            throw new ServiceException(NovelAiModelFactory.AI_MODEL_NOT_CONFIGURED);
         }
         switch (stepCode)
         {
@@ -95,7 +96,7 @@ public class NovelAgentFactory
         ToolCallback[] extras = novelAgentUtilsBridge.getExtraToolCallbacks();
         if (extras.length == 0)
         {
-            return novelAiModelFactory.buildAgentClient(tools);
+            return novelAiModelFactory.buildAgentClient(SecurityUtils.getUserId(), tools);
         }
         ToolCallback[] wrappedExtras = extras;
         if (toolContext != null)
@@ -109,7 +110,7 @@ public class NovelAgentFactory
         Object[] all = new Object[tools.length + wrappedExtras.length];
         System.arraycopy(tools, 0, all, 0, tools.length);
         System.arraycopy(wrappedExtras, 0, all, tools.length, wrappedExtras.length);
-        return novelAiModelFactory.buildAgentClient(all);
+        return novelAiModelFactory.buildAgentClient(SecurityUtils.getUserId(), all);
     }
 
     private ChatClient buildWithExtras(Object... domainTools)

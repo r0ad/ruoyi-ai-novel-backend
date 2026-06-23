@@ -241,6 +241,7 @@ create table novel_ai_message (
 drop table if exists novel_ai_model;
 create table novel_ai_model (
   model_id        bigint(20)      not null auto_increment    comment '模型配置ID',
+  user_id         bigint(20)      not null                   comment '所属用户ID',
   model_name      varchar(100)    not null                   comment '显示名称',
   provider_type   varchar(32)     not null                   comment '协议类型（openai/anthropic）',
   base_url        varchar(500)    not null                   comment 'API Base URL',
@@ -259,7 +260,7 @@ create table novel_ai_model (
   update_time     datetime                                   comment '更新时间',
   remark          varchar(500)    default null               comment '备注',
   primary key (model_id),
-  key idx_active (is_active),
+  key idx_user_active (user_id, is_active),
   key idx_provider (provider_type, status)
 ) engine=innodb auto_increment=1 comment = 'AI模型配置表';
 

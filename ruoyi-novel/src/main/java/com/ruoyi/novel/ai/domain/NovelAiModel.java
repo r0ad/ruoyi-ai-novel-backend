@@ -22,6 +22,9 @@ public class NovelAiModel extends BaseEntity
     /** 模型配置ID */
     private Long modelId;
 
+    /** 所属用户ID */
+    private Long userId;
+
     /** 显示名称 */
     @Excel(name = "模型名称")
     private String modelName;
@@ -71,6 +74,16 @@ public class NovelAiModel extends BaseEntity
     public void setModelId(Long modelId)
     {
         this.modelId = modelId;
+    }
+
+    public Long getUserId()
+    {
+        return userId;
+    }
+
+    public void setUserId(Long userId)
+    {
+        this.userId = userId;
     }
 
     @NotBlank(message = "模型名称不能为空")
@@ -205,6 +218,7 @@ public class NovelAiModel extends BaseEntity
     {
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
             .append("modelId", getModelId())
+            .append("userId", getUserId())
             .append("modelName", getModelName())
             .append("providerType", getProviderType())
             .append("baseUrl", getBaseUrl())

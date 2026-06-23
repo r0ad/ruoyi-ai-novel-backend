@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.alibaba.fastjson2.JSON;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.novel.ai.capability.INovelAiCapabilityService;
 import com.ruoyi.novel.ai.config.NovelAiModelFactory;
@@ -97,7 +98,7 @@ public class NovelAiServiceImpl implements INovelAiService
         }
         if (resolveChatClient() == null)
         {
-            return Flux.just(streamError("未配置激活的 AI 模型，请先在「AI模型管理」中添加并激活模型"));
+            return Flux.just(streamError(NovelAiModelFactory.AI_MODEL_NOT_CONFIGURED));
         }
         return resolveChatClient().prompt()
             .system(buildContinueSystemPrompt(request))
@@ -142,13 +143,13 @@ public class NovelAiServiceImpl implements INovelAiService
     {
         if (resolveChatClient() == null)
         {
-            throw new ServiceException("未配置激活的 AI 模型，请先在「AI模型管理」中添加并激活模型");
+            throw new ServiceException(NovelAiModelFactory.AI_MODEL_NOT_CONFIGURED);
         }
     }
 
     private ChatClient resolveChatClient()
     {
-        return novelAiModelFactory.getChatClient();
+        return novelAiModelFactory.getChatClient(SecurityUtils.getUserId());
     }
 
     private String extractAssistantText(ChatClient.CallResponseSpec callResponse)

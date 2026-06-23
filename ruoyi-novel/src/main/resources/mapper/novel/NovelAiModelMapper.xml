@@ -6,6 +6,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <resultMap type="com.ruoyi.novel.ai.domain.NovelAiModel" id="NovelAiModelResult">
         <result property="modelId"       column="model_id"       />
+        <result property="userId"        column="user_id"        />
         <result property="modelName"     column="model_name"     />
         <result property="providerType"  column="provider_type"  />
         <result property="baseUrl"       column="base_url"       />
@@ -26,7 +27,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectNovelAiModelVo">
-        select model_id, model_name, provider_type, base_url, api_key, model_code,
+        select model_id, user_id, model_name, provider_type, base_url, api_key, model_code,
                temperature, max_tokens, timeout_ms, is_active, is_default, sort_order,
                status, create_by, create_time, update_by, update_time, remark
         from novel_ai_model
@@ -37,15 +38,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where model_id = #{modelId}
     </select>
 
-    <select id="selectActiveNovelAiModel" resultMap="NovelAiModelResult">
+    <select id="selectActiveNovelAiModel" parameterType="Long" resultMap="NovelAiModelResult">
         <include refid="selectNovelAiModelVo"/>
-        where is_active = '1' and status = '0'
+        where user_id = #{userId} and is_active = '1' and status = '0'
         limit 1
     </select>
 
     <select id="selectNovelAiModelList" parameterType="com.ruoyi.novel.ai.domain.NovelAiModel" resultMap="NovelAiModelResult">
         <include refid="selectNovelAiModelVo"/>
         <where>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
             <if test="modelName != null and modelName != ''">
                 AND model_name like concat('%', #{modelName}, '%')
             </if>
@@ -64,11 +68,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <insert id="insertNovelAiModel" parameterType="com.ruoyi.novel.ai.domain.NovelAiModel" useGeneratedKeys="true" keyProperty="modelId">
         insert into novel_ai_model (
-            model_name, provider_type, base_url, api_key, model_code,
+            user_id, model_name, provider_type, base_url, api_key, model_code,
             temperature, max_tokens, timeout_ms, is_active, is_default, sort_order, status,
             remark, create_by, create_time
         ) values (
-            #{modelName}, #{providerType}, #{baseUrl}, #{apiKey}, #{modelCode},
+            #{userId}, #{modelName}, #{providerType}, #{baseUrl}, #{apiKey}, #{modelCode},
             #{temperature}, #{maxTokens}, #{timeoutMs}, #{isActive}, #{isDefault}, #{sortOrder}, #{status},
             #{remark}, #{createBy}, sysdate()
         )
@@ -96,8 +100,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where model_id = #{modelId}
     </update>
 
-    <update id="deactivateAllModels">
+    <update id="deactivateAllModels" parameterType="Long">
         update novel_ai_model set is_active = '0', update_time = sysdate()
+        where user_id = #{userId}
     </update>
 
     <update id="activateModel" parameterType="Long">

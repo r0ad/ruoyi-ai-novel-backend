@@ -6,9 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
-import com.ruoyi.novel.ai.config.NovelAiKeyCrypto;
 import com.ruoyi.novel.ai.config.NovelAiModelFactory;
+import com.ruoyi.novel.ai.config.NovelAiKeyCrypto;
 import com.ruoyi.novel.ai.domain.NovelAiModel;
 import com.ruoyi.novel.ai.mapper.NovelAiModelMapper;
 import com.ruoyi.novel.ai.service.INovelAiModelService;
@@ -30,19 +31,25 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
     public NovelAiModel selectNovelAiModelByModelId(Long modelId)
     {
         NovelAiModel model = novelAiModelMapper.selectNovelAiModelByModelId(modelId);
+        assertOwned(model);
         return maskModel(model);
     }
 
     @Override
     public NovelAiModel selectActiveNovelAiModel()
     {
-        NovelAiModel model = novelAiModelMapper.selectActiveNovelAiModel();
+        NovelAiModel model = novelAiModelMapper.selectActiveNovelAiModel(requireUserId());
         return maskModel(model);
     }
 
     @Override
     public List<NovelAiModel> selectNovelAiModelList(NovelAiModel novelAiModel)
     {
+        if (novelAiModel == null)
+        {
+            novelAiModel = new NovelAiModel();
+        }
+        novelAiModel.setUserId(requireUserId());
         List<NovelAiModel> list = novelAiModelMapper.selectNovelAiModelList(novelAiModel);
         for (NovelAiModel item : list)
         {
@@ -56,6 +63,7 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
     {
         validateModel(novelAiModel, true);
         applyDefaults(novelAiModel);
+        novelAiModel.setUserId(requireUserId());
         novelAiModel.setApiKey(novelAiKeyCrypto.encrypt(novelAiModel.getApiKey()));
         novelAiModel.setIsActive(StringUtils.defaultIfEmpty(novelAiModel.getIsActive(), "0"));
         novelAiModel.setStatus(StringUtils.defaultIfEmpty(novelAiModel.getStatus(), "0"));
@@ -75,10 +83,7 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
             throw new ServiceException("模型 ID 不能为空");
         }
         NovelAiModel existing = novelAiModelMapper.selectNovelAiModelByModelId(novelAiModel.getModelId());
-        if (existing == null)
-        {
-            throw new ServiceException("模型配置不存在");
-        }
+        assertOwned(existing);
         validateModel(novelAiModel, false);
         if (NovelAiKeyUtils.isMaskedValue(novelAiModel.getApiKey()))
         {
@@ -92,7 +97,7 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
         NovelAiModel latest = novelAiModelMapper.selectNovelAiModelByModelId(novelAiModel.getModelId());
         if (latest != null && "1".equals(latest.getIsActive()))
         {
-            novelAiModelFactory.reload();
+            novelAiModelFactory.invalidateCache(requireUserId());
         }
         return rows;
     }
@@ -103,7 +108,8 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
         for (Long modelId : modelIds)
         {
             NovelAiModel model = novelAiModelMapper.selectNovelAiModelByModelId(modelId);
-            if (model != null && "1".equals(model.getIsActive()))
+            assertOwned(model);
+            if ("1".equals(model.getIsActive()))
             {
                 throw new ServiceException("不能删除当前激活的模型：" + model.getModelName());
             }
@@ -115,18 +121,16 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
     @Transactional
     public int activateModel(Long modelId)
     {
+        Long userId = requireUserId();
         NovelAiModel model = novelAiModelMapper.selectNovelAiModelByModelId(modelId);
-        if (model == null)
-        {
-            throw new ServiceException("模型配置不存在");
-        }
+        assertOwned(model);
         if ("1".equals(model.getStatus()))
         {
             throw new ServiceException("已停用的模型不可激活");
         }
-        novelAiModelMapper.deactivateAllModels();
+        novelAiModelMapper.deactivateAllModels(userId);
         int rows = novelAiModelMapper.activateModel(modelId);
-        novelAiModelFactory.reload();
+        novelAiModelFactory.invalidateCache(userId);
         return rows;
     }
 
@@ -134,10 +138,7 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
     public String testConnection(Long modelId)
     {
         NovelAiModel model = novelAiModelMapper.selectNovelAiModelByModelId(modelId);
-        if (model == null)
-        {
-            throw new ServiceException("模型配置不存在");
-        }
+        assertOwned(model);
         String plainKey = novelAiKeyCrypto.decrypt(model.getApiKey());
         return novelAiModelFactory.testModel(model, plainKey);
     }
@@ -148,6 +149,29 @@ public class NovelAiModelServiceImpl implements INovelAiModelService
         validateModel(novelAiModel, true);
         applyDefaults(novelAiModel);
         return novelAiModelFactory.testModel(novelAiModel, novelAiModel.getApiKey());
+    }
+
+    private Long requireUserId()
+    {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null)
+        {
+            throw new ServiceException("未获取到当前用户信息");
+        }
+        return userId;
+    }
+
+    private void assertOwned(NovelAiModel model)
+    {
+        if (model == null)
+        {
+            throw new ServiceException("模型配置不存在");
+        }
+        Long userId = requireUserId();
+        if (model.getUserId() == null || !userId.equals(model.getUserId()))
+        {
+            throw new ServiceException("无权操作该模型配置");
+        }
     }
 
     private void validateModel(NovelAiModel model, boolean requireApiKey)

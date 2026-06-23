@@ -1,6 +1,7 @@
 package com.ruoyi.novel.ai.config;
 
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.anthropic.AnthropicChatModel;
@@ -16,10 +17,9 @@ import org.springframework.stereotype.Component;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.novel.ai.domain.NovelAiModel;
 import com.ruoyi.novel.ai.mapper.NovelAiModelMapper;
-import jakarta.annotation.PostConstruct;
 
 /**
- * 根据激活的 AI 模型配置动态构建 ChatClient
+ * 根据当前用户激活的 AI 模型配置动态构建 ChatClient
  */
 @Component
 public class NovelAiModelFactory
@@ -28,62 +28,35 @@ public class NovelAiModelFactory
 
     private static final String DEFAULT_SYSTEM = "你是一位专业网络小说创作助手，请用中文回答。";
 
+    public static final String AI_MODEL_NOT_CONFIGURED =
+        "未配置激活的 AI 模型，请先在「AI模型管理」中添加并激活您个人的模型配置";
+
     @Autowired
     private NovelAiModelMapper novelAiModelMapper;
 
     @Autowired
     private NovelAiKeyCrypto novelAiKeyCrypto;
 
-    private volatile ChatClient chatClient;
+    private final ConcurrentHashMap<Long, CachedClient> cache = new ConcurrentHashMap<>();
 
-    private volatile NovelAiModel activeModel;
-
-    @PostConstruct
-    public void init()
+    public ChatClient getChatClient(Long userId)
     {
-        reload();
-    }
-
-    public synchronized void reload()
-    {
-        NovelAiModel model = novelAiModelMapper.selectActiveNovelAiModel();
-        if (model == null)
+        if (userId == null)
         {
-            chatClient = null;
-            activeModel = null;
-            log.info("未配置激活的 AI 模型");
-            return;
+            return null;
         }
-        try
-        {
-            ChatModel chatModel = buildChatModel(model, novelAiKeyCrypto.decrypt(model.getApiKey()));
-            chatClient = ChatClient.builder(chatModel).defaultSystem(DEFAULT_SYSTEM).build();
-            activeModel = copyWithoutKey(model);
-            log.info("AI 模型已加载：{} ({}/{}) timeoutMs={}", model.getModelName(), model.getProviderType(),
-                model.getModelCode(), NovelAiHttpTimeoutCustomizer.resolveTimeoutMs(model.getTimeoutMs()));
-        }
-        catch (Exception ex)
-        {
-            chatClient = null;
-            activeModel = null;
-            log.error("加载 AI 模型失败：{}", model.getModelName(), ex);
-        }
-    }
-
-    public ChatClient getChatClient()
-    {
-        return chatClient;
+        return resolveCached(userId).chatClient;
     }
 
     /**
      * 构建带 Tool 的 Agent ChatClient（工作流步骤使用）
      */
-    public ChatClient buildAgentClient(Object... tools)
+    public ChatClient buildAgentClient(Long userId, Object... tools)
     {
-        NovelAiModel model = novelAiModelMapper.selectActiveNovelAiModel();
+        NovelAiModel model = novelAiModelMapper.selectActiveNovelAiModel(userId);
         if (model == null)
         {
-            throw new IllegalStateException("未配置激活的 AI 模型");
+            throw new IllegalStateException(AI_MODEL_NOT_CONFIGURED);
         }
         ChatModel chatModel = buildChatModel(model, novelAiKeyCrypto.decrypt(model.getApiKey()), true);
         ChatClient.Builder builder = ChatClient.builder(chatModel);
@@ -94,14 +67,27 @@ public class NovelAiModelFactory
         return builder.build();
     }
 
-    public NovelAiModel getActiveModel()
+    public NovelAiModel getActiveModel(Long userId)
     {
-        return activeModel;
+        if (userId == null)
+        {
+            return null;
+        }
+        CachedClient cached = resolveCached(userId);
+        return cached.activeModel;
     }
 
-    public boolean isReady()
+    public boolean isReady(Long userId)
     {
-        return chatClient != null;
+        return userId != null && getChatClient(userId) != null;
+    }
+
+    public void invalidateCache(Long userId)
+    {
+        if (userId != null)
+        {
+            cache.remove(userId);
+        }
     }
 
     public String testModel(NovelAiModel model, String plainApiKey)
@@ -146,6 +132,37 @@ public class NovelAiModelFactory
             return buildAnthropicChatModel(model, plainApiKey, temperature, maxTokens, timeoutMs);
         }
         return buildOpenAiChatModel(model, plainApiKey, temperature, maxTokens, timeoutMs);
+    }
+
+    private CachedClient resolveCached(Long userId)
+    {
+        return cache.computeIfAbsent(userId, this::loadForUser);
+    }
+
+    private CachedClient loadForUser(Long userId)
+    {
+        NovelAiModel model = novelAiModelMapper.selectActiveNovelAiModel(userId);
+        if (model == null)
+        {
+            log.debug("用户 {} 未配置激活的 AI 模型", userId);
+            return new CachedClient();
+        }
+        try
+        {
+            ChatModel chatModel = buildChatModel(model, novelAiKeyCrypto.decrypt(model.getApiKey()));
+            CachedClient cached = new CachedClient();
+            cached.chatClient = ChatClient.builder(chatModel).defaultSystem(DEFAULT_SYSTEM).build();
+            cached.activeModel = copyWithoutKey(model);
+            log.info("用户 {} AI 模型已加载：{} ({}/{}) timeoutMs={}", userId, model.getModelName(),
+                model.getProviderType(), model.getModelCode(),
+                NovelAiHttpTimeoutCustomizer.resolveTimeoutMs(model.getTimeoutMs()));
+            return cached;
+        }
+        catch (Exception ex)
+        {
+            log.error("用户 {} 加载 AI 模型失败：{}", userId, model.getModelName(), ex);
+            return new CachedClient();
+        }
     }
 
     private ChatModel buildOpenAiChatModel(NovelAiModel model, String plainApiKey, double temperature, int maxTokens,
@@ -199,6 +216,7 @@ public class NovelAiModelFactory
     {
         NovelAiModel copy = new NovelAiModel();
         copy.setModelId(source.getModelId());
+        copy.setUserId(source.getUserId());
         copy.setModelName(source.getModelName());
         copy.setProviderType(source.getProviderType());
         copy.setBaseUrl(source.getBaseUrl());
@@ -210,5 +228,12 @@ public class NovelAiModelFactory
         copy.setStatus(source.getStatus());
         copy.setRemark(source.getRemark());
         return copy;
+    }
+
+    private static final class CachedClient
+    {
+        private ChatClient chatClient;
+
+        private NovelAiModel activeModel;
     }
 }

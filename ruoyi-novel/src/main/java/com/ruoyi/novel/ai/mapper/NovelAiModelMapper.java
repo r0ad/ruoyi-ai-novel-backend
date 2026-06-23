@@ -10,7 +10,7 @@ public interface NovelAiModelMapper
 {
     public NovelAiModel selectNovelAiModelByModelId(Long modelId);
 
-    public NovelAiModel selectActiveNovelAiModel();
+    public NovelAiModel selectActiveNovelAiModel(Long userId);
 
     public List<NovelAiModel> selectNovelAiModelList(NovelAiModel novelAiModel);
 
@@ -22,7 +22,7 @@ public interface NovelAiModelMapper
 
     public int deleteNovelAiModelByModelIds(Long[] modelIds);
 
-    public int deactivateAllModels();
+    public int deactivateAllModels(Long userId);
 
     public int activateModel(Long modelId);
 }
