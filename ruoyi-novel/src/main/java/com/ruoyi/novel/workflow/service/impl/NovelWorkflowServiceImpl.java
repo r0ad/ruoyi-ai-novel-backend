@@ -308,8 +308,12 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         novelWorkflowRunMapper.updateNovelWorkflowRun(run);
         workflowEventPublisher.publish(runId, step.getStepId(), NovelWorkflowEventType.RUN_STATUS.getCode(),
             java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.RUNNING.getCode()));
-        novelAiSessionService.appendMessage(step.getAgentSessionId(), "user", request.getMessage().trim());
-        novelWorkflowStepRunner.chatAsync(runId, step.getStepId());
+        boolean appended = novelAiSessionService.appendMessageIfNotDuplicate(step.getAgentSessionId(), "user",
+            request.getMessage().trim());
+        if (appended)
+        {
+            novelWorkflowStepRunner.chatAsync(runId, step.getStepId());
+        }
     }
 
     private boolean isInteractiveStep(NovelWorkflowStepCode stepCode)

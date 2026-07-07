@@ -1,4 +1,4 @@
-package com.ruoyi.novel.workflow;
+package com.ruoyi.novel.agent.runtime;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,21 +13,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.novel.agent.NovelAgentFactory;
 import com.ruoyi.novel.agent.prompts.NovelPromptTemplateService;
 import com.ruoyi.novel.ai.session.domain.NovelAiMessage;
 import com.ruoyi.novel.ai.session.service.INovelAiSessionService;
 import com.ruoyi.novel.ai.sse.WorkflowEventPublisher;
-import com.ruoyi.novel.workflow.domain.NovelWorkflowRun;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowEventType;
-import com.ruoyi.novel.workflow.enums.NovelWorkflowStepCode;
 
-/**
- * 工作流 Agent 调用：优先 SSE 流式输出 token；流式失败或为空时回退 sync call 完成 tool loop。
- */
 @Component
-public class NovelWorkflowAgentInvoker
+public class SpringAiNovelAgentRuntime implements NovelAgentRuntime
 {
-    private static final Logger log = LoggerFactory.getLogger(NovelWorkflowAgentInvoker.class);
+    private static final Logger log = LoggerFactory.getLogger(SpringAiNovelAgentRuntime.class);
+
+    @Autowired
+    private NovelAgentFactory novelAgentFactory;
 
     @Autowired
     private NovelPromptTemplateService novelPromptTemplateService;
@@ -38,17 +37,18 @@ public class NovelWorkflowAgentInvoker
     @Autowired
     private WorkflowEventPublisher workflowEventPublisher;
 
-    public String invoke(Long runId, Long stepId, NovelWorkflowRun run, NovelWorkflowStepCode stepCode,
-        ChatClient client, Long sessionId)
+    @Override
+    public AgentRunResult execute(AgentRunSpec spec)
     {
-        String system = novelPromptTemplateService.buildSystemPrompt(run, stepCode);
-        List<Message> messages = buildConversationMessages(system, sessionId);
-        log.info("Agent invoke start runId={} stepId={} step={} messageCount={}", runId, stepId,
-            stepCode.getCode(), messages.size());
-        String response = invokeWithStreaming(runId, stepId, client, messages);
-        log.info("Agent invoke done runId={} stepId={} responseLen={}", runId, stepId,
+        ChatClient client = novelAgentFactory.createForStep(spec.getStepCode(), spec.getToolContext());
+        String system = novelPromptTemplateService.buildSystemPrompt(spec.getRun(), spec.getStepCode());
+        List<Message> messages = buildConversationMessages(system, spec.getSessionId());
+        log.info("Agent invoke start runId={} stepId={} step={} messageCount={}", spec.getRunId(), spec.getStepId(),
+            spec.getStepCode().getCode(), messages.size());
+        String response = invokeWithStreaming(spec.getRunId(), spec.getStepId(), client, messages);
+        log.info("Agent invoke done runId={} stepId={} responseLen={}", spec.getRunId(), spec.getStepId(),
             response != null ? response.length() : 0);
-        return response;
+        return new AgentRunResult(response);
     }
 
     private List<Message> buildConversationMessages(String system, Long sessionId)
@@ -134,7 +134,7 @@ public class NovelWorkflowAgentInvoker
             {
                 return streamResult;
             }
-            throw new ServiceException("Agent 执行失败：" + rootMessage(callEx));
+            throw new ServiceException("Agent execution failed: " + rootMessage(callEx));
         }
 
         if (StringUtils.isNotEmpty(streamResult))
@@ -143,9 +143,9 @@ public class NovelWorkflowAgentInvoker
         }
         if (streamError != null)
         {
-            throw new ServiceException("Agent 执行失败：" + rootMessage(streamError));
+            throw new ServiceException("Agent execution failed: " + rootMessage(streamError));
         }
-        throw new ServiceException("Agent 未返回有效内容，请重试或继续对话");
+        throw new ServiceException("Agent returned no valid content. Please retry or continue the conversation.");
     }
 
     private void publishDelta(Long runId, Long stepId, String alreadySent, String fullText)

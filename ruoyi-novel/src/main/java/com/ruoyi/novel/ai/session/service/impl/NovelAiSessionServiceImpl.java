@@ -3,6 +3,7 @@ package com.ruoyi.novel.ai.session.service.impl;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.novel.ai.session.domain.NovelAiMessage;
 import com.ruoyi.novel.ai.session.domain.NovelAiSession;
 import com.ruoyi.novel.ai.session.mapper.NovelAiMessageMapper;
@@ -43,6 +44,29 @@ public class NovelAiSessionServiceImpl implements INovelAiSessionService
         NovelAiSession session = new NovelAiSession();
         session.setSessionId(sessionId);
         novelAiSessionMapper.updateNovelAiSession(session);
+    }
+
+    @Override
+    public boolean appendMessageIfNotDuplicate(Long sessionId, String role, String content)
+    {
+        List<NovelAiMessage> messages = listMessages(sessionId);
+        if (messages != null && !messages.isEmpty())
+        {
+            NovelAiMessage last = messages.get(messages.size() - 1);
+            if (last != null
+                && StringUtils.equals(trimToEmpty(last.getRole()), trimToEmpty(role))
+                && StringUtils.equals(trimToEmpty(last.getContent()), trimToEmpty(content)))
+            {
+                return false;
+            }
+        }
+        appendMessage(sessionId, role, content);
+        return true;
+    }
+
+    private String trimToEmpty(String value)
+    {
+        return value == null ? "" : value.trim();
     }
 
     @Override

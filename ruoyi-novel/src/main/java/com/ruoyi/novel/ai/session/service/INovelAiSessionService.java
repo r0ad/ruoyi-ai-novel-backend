@@ -10,6 +10,8 @@ public interface INovelAiSessionService
 
     void appendMessage(Long sessionId, String role, String content);
 
+    boolean appendMessageIfNotDuplicate(Long sessionId, String role, String content);
+
     List<NovelAiMessage> listMessages(Long sessionId);
 
     NovelAiSession getSession(Long sessionId);

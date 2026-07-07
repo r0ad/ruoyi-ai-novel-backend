@@ -4,7 +4,6 @@ import java.util.Date;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -12,9 +11,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.ruoyi.common.utils.StringUtils;
-import com.ruoyi.novel.agent.NovelAgentFactory;
 import com.ruoyi.novel.agent.NovelToolContext;
 import com.ruoyi.novel.agent.prompts.NovelPromptTemplateService;
+import com.ruoyi.novel.agent.runtime.AgentRunResult;
+import com.ruoyi.novel.agent.runtime.AgentRunSpec;
+import com.ruoyi.novel.agent.runtime.NovelAgentRuntime;
 import com.ruoyi.novel.domain.NovelProject;
 import com.ruoyi.novel.mapper.NovelProjectMapper;
 import com.ruoyi.novel.ai.session.domain.NovelAiSession;
@@ -36,9 +37,6 @@ public class NovelWorkflowStepRunner
     private static final Logger log = LoggerFactory.getLogger(NovelWorkflowStepRunner.class);
 
     @Autowired
-    private NovelAgentFactory novelAgentFactory;
-
-    @Autowired
     private NovelPromptTemplateService novelPromptTemplateService;
 
     @Autowired
@@ -54,7 +52,7 @@ public class NovelWorkflowStepRunner
     private INovelAiSessionService novelAiSessionService;
 
     @Autowired
-    private NovelWorkflowAgentInvoker novelWorkflowAgentInvoker;
+    private NovelAgentRuntime novelAgentRuntime;
 
     @Autowired
     private NovelWorkflowStepValidator novelWorkflowStepValidator;
@@ -115,10 +113,9 @@ public class NovelWorkflowStepRunner
             String user = buildStepUserPrompt(run, stepCode);
             novelAiSessionService.appendMessage(session.getSessionId(), "user", user);
 
-            ChatClient client = novelAgentFactory.createForStep(stepCode, toolContext);
-            String response = novelWorkflowAgentInvoker.invoke(runId, stepId, run, stepCode, client,
-                session.getSessionId());
-            finishStepInteraction(run, step, stepCode, session.getSessionId(), response);
+            AgentRunResult result = novelAgentRuntime.execute(AgentRunSpec.workflow(runId, stepId, run, stepCode,
+                session.getSessionId(), toolContext));
+            finishStepInteraction(run, step, stepCode, session.getSessionId(), result.getContent());
         }
         catch (Exception ex)
         {
@@ -153,10 +150,9 @@ public class NovelWorkflowStepRunner
             workflowEventPublisher.publish(runId, stepId, NovelWorkflowEventType.RUN_STATUS.getCode(),
                 java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.RUNNING.getCode()));
 
-            ChatClient client = novelAgentFactory.createForStep(stepCode, toolContext);
-            String response = novelWorkflowAgentInvoker.invoke(runId, stepId, run, stepCode, client,
-                step.getAgentSessionId());
-            finishStepInteraction(run, step, stepCode, step.getAgentSessionId(), response);
+            AgentRunResult result = novelAgentRuntime.execute(AgentRunSpec.workflow(runId, stepId, run, stepCode,
+                step.getAgentSessionId(), toolContext));
+            finishStepInteraction(run, step, stepCode, step.getAgentSessionId(), result.getContent());
         }
         catch (Exception ex)
         {
@@ -175,7 +171,7 @@ public class NovelWorkflowStepRunner
         {
             response = "（Agent 未返回文本，请继续对话或重试）";
         }
-        novelAiSessionService.appendMessage(sessionId, "assistant", response);
+        novelAiSessionService.appendMessageIfNotDuplicate(sessionId, "assistant", response);
 
         NovelWorkflowStepReadiness readiness = novelWorkflowStepValidator.evaluate(run.getProjectId(), stepCode);
         String snapshot = response;
