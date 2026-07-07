@@ -42,6 +42,9 @@ nbdist/
 *.xml.versionsBackup
 *.swp
 
+# Local secrets / machine-specific Spring Boot overrides
+ruoyi-admin/src/main/resources/application-local.yml
+
 !*/build/*.java
 !*/build/*.html
 !*/build/*.xml

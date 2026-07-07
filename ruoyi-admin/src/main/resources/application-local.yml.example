@@ -1,0 +1,18 @@
+# Copy this file to application-local.yml and fill in local secrets.
+# application-local.yml is ignored by git.
+
+spring:
+    datasource:
+        druid:
+            master:
+                url: jdbc:mysql://localhost:4406/ry-novel?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
+                username: root
+                password:
+            slave:
+                enabled: false
+                url:
+                username:
+                password:
+            statViewServlet:
+                login-username: ruoyi
+                login-password:
