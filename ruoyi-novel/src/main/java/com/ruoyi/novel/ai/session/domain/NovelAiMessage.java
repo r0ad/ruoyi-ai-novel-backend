@@ -1,5 +1,8 @@
 package com.ruoyi.novel.ai.session.domain;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
 public class NovelAiMessage
@@ -23,4 +26,32 @@ public class NovelAiMessage
     public void setTokenUsage(Integer tokenUsage) { this.tokenUsage = tokenUsage; }
     public Date getCreateTime() { return createTime; }
     public void setCreateTime(Date createTime) { this.createTime = createTime; }
+
+    public String getStableMessageId()
+    {
+        if (messageId != null)
+        {
+            return "db-" + messageId;
+        }
+        return "msg-" + sha1((sessionId == null ? "" : sessionId) + ":" + role + ":" + content);
+    }
+
+    private String sha1(String value)
+    {
+        try
+        {
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            byte[] bytes = digest.digest(String.valueOf(value).getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < Math.min(bytes.length, 8); i++)
+            {
+                builder.append(String.format("%02x", bytes[i]));
+            }
+            return builder.toString();
+        }
+        catch (NoSuchAlgorithmException e)
+        {
+            return Integer.toHexString(String.valueOf(value).hashCode());
+        }
+    }
 }

@@ -27,6 +27,7 @@ import com.ruoyi.novel.workflow.domain.NovelWorkflowRun;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowRunDetail;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowStartRequest;
 import com.ruoyi.novel.workflow.domain.NovelWorkflowStep;
+import com.ruoyi.novel.workflow.domain.NovelWorkflowStepArtifact;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowEventType;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowRunStatus;
 import com.ruoyi.novel.workflow.enums.NovelWorkflowStepCode;
@@ -122,6 +123,7 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         NovelWorkflowRunDetail detail = new NovelWorkflowRunDetail();
         detail.setRun(run);
         detail.setSteps(novelWorkflowStepMapper.selectStepsByRunId(runId));
+        detail.setArtifacts(buildStepArtifacts(run, detail.getSteps()));
         if (StringUtils.isNotEmpty(run.getCurrentStep()))
         {
             detail.setCurrentStepRecord(
@@ -130,6 +132,61 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         detail.setEvents(novelWorkflowEventMapper.selectReplayEventsByRunIdAfterId(runId, null));
         enrichStepContext(detail, run, messageStepCode);
         return detail;
+    }
+
+    private List<NovelWorkflowStepArtifact> buildStepArtifacts(NovelWorkflowRun run, List<NovelWorkflowStep> steps)
+    {
+        if (steps == null || steps.isEmpty())
+        {
+            return Collections.emptyList();
+        }
+        java.util.ArrayList<NovelWorkflowStepArtifact> artifacts = new java.util.ArrayList<NovelWorkflowStepArtifact>();
+        for (NovelWorkflowStep step : steps)
+        {
+            if (step == null || StringUtils.isEmpty(step.getOutputSnapshot()))
+            {
+                continue;
+            }
+            NovelWorkflowStepCode stepCode = NovelWorkflowStepCode.fromCode(step.getStepCode());
+            NovelWorkflowStepArtifact artifact = new NovelWorkflowStepArtifact();
+            artifact.setArtifactId("step-" + step.getStepId() + "-draft");
+            artifact.setRunId(step.getRunId());
+            artifact.setStepId(step.getStepId());
+            artifact.setStepCode(step.getStepCode());
+            artifact.setArtifactType(resolveArtifactType(step.getStepCode()));
+            artifact.setTitle((stepCode != null ? stepCode.getLabel() : step.getStepCode()) + "产物");
+            artifact.setContentMd(step.getOutputSnapshot());
+            artifact.setVersion(1);
+            artifact.setSourceRunId(run.getRunId());
+            artifact.setUpdateTime(step.getFinishedAt() != null ? step.getFinishedAt() : step.getCreateTime());
+            artifacts.add(artifact);
+        }
+        return artifacts;
+    }
+
+    private String resolveArtifactType(String stepCode)
+    {
+        if (NovelWorkflowStepCode.INIT_PROJECT.getCode().equals(stepCode))
+        {
+            return "project_brief";
+        }
+        if (NovelWorkflowStepCode.WORLD_BUILDING.getCode().equals(stepCode))
+        {
+            return "world";
+        }
+        if (NovelWorkflowStepCode.CHARACTER_DESIGN.getCode().equals(stepCode))
+        {
+            return "characters";
+        }
+        if (NovelWorkflowStepCode.PLOT_OUTLINE.getCode().equals(stepCode))
+        {
+            return "outline";
+        }
+        if (NovelWorkflowStepCode.CHAPTER_PLANNING.getCode().equals(stepCode))
+        {
+            return "chapter_plan";
+        }
+        return "draft";
     }
 
     @Override
@@ -304,16 +361,17 @@ public class NovelWorkflowServiceImpl implements INovelWorkflowService
         {
             throw new ServiceException("当前步骤会话不存在，请重跑步骤");
         }
+        boolean appended = novelAiSessionService.appendMessageIfNotDuplicate(step.getAgentSessionId(), "user",
+            request.getMessage().trim());
+        if (!appended)
+        {
+            return;
+        }
         run.setStatus(NovelWorkflowRunStatus.RUNNING.getCode());
         novelWorkflowRunMapper.updateNovelWorkflowRun(run);
         workflowEventPublisher.publish(runId, step.getStepId(), NovelWorkflowEventType.RUN_STATUS.getCode(),
             java.util.Collections.singletonMap("status", NovelWorkflowRunStatus.RUNNING.getCode()));
-        boolean appended = novelAiSessionService.appendMessageIfNotDuplicate(step.getAgentSessionId(), "user",
-            request.getMessage().trim());
-        if (appended)
-        {
-            novelWorkflowStepRunner.chatAsync(runId, step.getStepId());
-        }
+        novelWorkflowStepRunner.chatAsync(runId, step.getStepId());
     }
 
     private boolean isInteractiveStep(NovelWorkflowStepCode stepCode)

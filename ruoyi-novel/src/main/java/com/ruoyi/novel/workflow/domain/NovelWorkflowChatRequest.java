@@ -6,6 +6,7 @@ package com.ruoyi.novel.workflow.domain;
 public class NovelWorkflowChatRequest
 {
     private String message;
+    private String clientMessageId;
 
     public String getMessage()
     {
@@ -15,5 +16,15 @@ public class NovelWorkflowChatRequest
     public void setMessage(String message)
     {
         this.message = message;
+    }
+
+    public String getClientMessageId()
+    {
+        return clientMessageId;
+    }
+
+    public void setClientMessageId(String clientMessageId)
+    {
+        this.clientMessageId = clientMessageId;
     }
 }

@@ -13,6 +13,7 @@ public class NovelWorkflowRunDetail
     private NovelWorkflowStep currentStepRecord;
     private List<NovelWorkflowEvent> events;
     private List<NovelAiMessage> stepMessages;
+    private List<NovelWorkflowStepArtifact> artifacts;
     private NovelWorkflowStepReadiness stepReadiness;
 
     public NovelWorkflowRun getRun()
@@ -63,6 +64,16 @@ public class NovelWorkflowRunDetail
     public void setStepMessages(List<NovelAiMessage> stepMessages)
     {
         this.stepMessages = stepMessages;
+    }
+
+    public List<NovelWorkflowStepArtifact> getArtifacts()
+    {
+        return artifacts;
+    }
+
+    public void setArtifacts(List<NovelWorkflowStepArtifact> artifacts)
+    {
+        this.artifacts = artifacts;
     }
 
     public NovelWorkflowStepReadiness getStepReadiness()
